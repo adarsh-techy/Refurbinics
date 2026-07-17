@@ -1,9 +1,13 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import apiClient from '../../services/api-client';
 
-export const login = createAsyncThunk('auth/login', async ({ email, password }) => {
-  const { data } = await apiClient.post('/auth/login', { email, password });
-  return data;
+export const login = createAsyncThunk('auth/login', async ({ email, password }, { rejectWithValue }) => {
+  try {
+    const { data } = await apiClient.post('/auth/login', { email, password });
+    return data;
+  } catch (err) {
+    return rejectWithValue(err.response?.data?.message || 'Unable to sign in. Please try again.');
+  }
 });
 
 // TEMPORARY: pairs with the backend's temporary /auth/register endpoint.
@@ -80,7 +84,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       })
       .addCase(register.pending, (state) => {
         state.status = 'loading';
