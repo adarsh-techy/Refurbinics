@@ -4,7 +4,10 @@ module.exports = {
   port: process.env.PORT || 5000,
   httpsPort: process.env.HTTPS_PORT || 5443,
   nodeEnv: process.env.NODE_ENV || 'development',
-  clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
+  // Comma-separated in production so the Vercel production domain and any
+  // custom domain can both be whitelisted, e.g.
+  // "https://refurbinics.vercel.app,https://app.refurbinics.com".
+  clientUrls: (process.env.CLIENT_URL || 'http://localhost:5173').split(',').map((url) => url.trim()),
   db: {
     // Set by managed Postgres providers (Render/Railway/Supabase/Neon/etc.)
     // as a single connection string. Takes priority over the discrete
