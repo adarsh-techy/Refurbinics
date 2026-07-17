@@ -1,15 +1,19 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Link, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { login } from './auth-slice';
+import loginImage from '../../assets/logpage.png';
+import logo from '../../assets/logo.png';
 
 const inputClasses =
-  'w-full rounded-md border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-surface-600 dark:bg-surface-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/30';
-const labelClasses = 'mb-1.5 block text-sm font-medium text-slate-700 dark:text-neutral-200';
+  'w-full rounded-md border border-surface-600 bg-black py-2.5 pl-10 pr-3.5 text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30';
+const labelClasses = 'mb-1.5 block text-sm font-medium text-neutral-200';
+const iconClasses = 'pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-neutral-500';
 
 function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const { status, error } = useSelector((state) => state.auth);
@@ -23,60 +27,97 @@ function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-brand-50 to-slate-50 px-4 dark:from-surface-950 dark:to-surface-950">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 flex flex-col items-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-xl bg-brand-600 text-lg font-bold text-white shadow-sm">
-            R
-          </div>
-          <h1 className="text-lg font-semibold text-slate-900 dark:text-neutral-100">Refurbinics</h1>
-          <p className="text-sm text-slate-500 dark:text-neutral-400">Battery Repair Admin</p>
-        </div>
+    <div className="flex min-h-screen bg-black">
+      <div className="relative hidden w-1/2 lg:block">
+        <img src={loginImage} alt="" className="h-full w-full object-cover" />
+      </div>
 
-        <form
-          onSubmit={handleSubmit}
-          className="flex flex-col gap-4 rounded-xl border border-slate-200 bg-white p-7 shadow-sm dark:border-surface-700 dark:bg-surface-900"
-        >
-          <div>
-            <label className={labelClasses}>Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className={inputClasses}
-              required
-            />
+      <div className="flex w-full flex-col justify-center bg-surface-950 px-8 py-12 sm:px-14 lg:w-1/2">
+        <div className="mx-auto w-full max-w-sm">
+          <img src={logo} alt="Refurbinics" className="mx-auto mb-8 h-24 w-auto" />
+
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-white">Welcome Back!</h1>
+            <p className="mt-1 text-sm text-neutral-400">Sign in to continue</p>
           </div>
 
-          <div>
-            <label className={labelClasses}>Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className={inputClasses}
-              required
-            />
-          </div>
+          <form onSubmit={handleSubmit} className="mt-6 flex flex-col gap-4">
+            <div>
+              <label className={labelClasses}>Email Address</label>
+              <div className="relative">
+                <svg viewBox="0 0 20 20" fill="currentColor" className={iconClasses}>
+                  <path d="M3 4a2 2 0 00-2 2v1.161l8.441 4.221a1.25 1.25 0 001.118 0L19 7.162V6a2 2 0 00-2-2H3z" />
+                  <path d="M19 8.839l-7.77 3.885a2.75 2.75 0 01-2.46 0L1 8.839V14a2 2 0 002 2h14a2 2 0 002-2V8.839z" />
+                </svg>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className={inputClasses}
+                  placeholder="Enter your email"
+                  required
+                />
+              </div>
+            </div>
 
-          {error && <p className="text-sm text-critical-600 dark:text-red-400">{error}</p>}
+            <div>
+              <label className={labelClasses}>Password</label>
+              <div className="relative">
+                <svg viewBox="0 0 20 20" fill="currentColor" className={iconClasses}>
+                  <path
+                    fillRule="evenodd"
+                    d="M10 1a4.5 4.5 0 00-4.5 4.5V9H5a2 2 0 00-2 2v6a2 2 0 002 2h10a2 2 0 002-2v-6a2 2 0 00-2-2h-.5V5.5A4.5 4.5 0 0010 1zm3 8V5.5a3 3 0 10-6 0V9h6z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className={`${inputClasses} pr-10`}
+                  placeholder="Enter your password"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-neutral-300"
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
+                >
+                  {showPassword ? (
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                      <path d="M3.28 2.22a.75.75 0 00-1.06 1.06l14.5 14.5a.75.75 0 101.06-1.06l-1.745-1.745a10.029 10.029 0 003.3-4.38 1.651 1.651 0 000-1.185A10.004 10.004 0 009.999 3a9.956 9.956 0 00-4.744 1.194L3.28 2.22zM7.752 6.69l1.092 1.092a2.5 2.5 0 013.374 3.373l1.091 1.092a4 4 0 00-5.557-5.557z" />
+                      <path d="M10.748 13.93l2.523 2.523a9.987 9.987 0 01-3.27.547c-4.258 0-7.894-2.66-9.337-6.41a1.651 1.651 0 010-1.186A10.007 10.007 0 012.839 6.02L6.07 9.252a4 4 0 004.678 4.678z" />
+                    </svg>
+                  ) : (
+                    <svg viewBox="0 0 20 20" fill="currentColor" className="h-5 w-5">
+                      <path d="M10 12.5a2.5 2.5 0 100-5 2.5 2.5 0 000 5z" />
+                      <path
+                        fillRule="evenodd"
+                        d="M.664 10.59a1.651 1.651 0 010-1.186A10.004 10.004 0 0110 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0110 17c-4.257 0-7.893-2.66-9.336-6.41zM14 10a4 4 0 11-8 0 4 4 0 018 0z"
+                        clipRule="evenodd"
+                      />
+                    </svg>
+                  )}
+                </button>
+              </div>
+            </div>
 
-          <button
-            type="submit"
-            disabled={status === 'loading'}
-            className="mt-1 w-full rounded-md bg-brand-600 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-          >
-            {status === 'loading' ? 'Signing in…' : 'Sign in'}
-          </button>
+            {error && <p className="text-sm text-red-400">{error}</p>}
 
-          {/* TEMPORARY: remove once real admin management is in use. */}
-          <p className="text-center text-sm text-slate-500 dark:text-neutral-400">
-            Need an account?{' '}
-            <Link to="/register" className="font-medium text-brand-700 hover:underline dark:text-emerald-400">
-              Register
-            </Link>
+            <button
+              type="submit"
+              disabled={status === 'loading'}
+              className="mt-6 w-full rounded-lg bg-gradient-to-b from-[#61b928] to-[#46a127] py-3 text-sm font-bold uppercase tracking-wide text-white shadow-sm hover:from-[#6cc531] hover:to-[#4dae2c] disabled:opacity-50"
+            >
+              {status === 'loading' ? 'Signing in…' : 'Login'}
+            </button>
+          </form>
+
+          <p className="mt-8 text-center text-xs text-neutral-500">
+            © {new Date().getFullYear()} Refurbinics. All rights reserved.
           </p>
-        </form>
+        </div>
       </div>
     </div>
   );
