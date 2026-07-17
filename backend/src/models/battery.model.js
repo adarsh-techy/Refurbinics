@@ -1,0 +1,450 @@
+const db = require('../config/db');
+
+// Fetches one page of batteries, newest first. Requests limit+1 rows so the
+// caller can tell whether there's another page without a separate COUNT(*).
+// Optional status filter (e.g. 'repaired') narrows to batteries in that
+// state; optional date ('YYYY-MM-DD') narrows to batteries created that day;
+// optional q does a partial, case-insensitive match on the battery code
+// (used by the live search-as-you-type lookup).
+//
+// Also brings back each battery's most recent repair (when, which part(s),
+// and who did it — grouped by batch_id so a multi-part visit reads as one
+// event) plus how many separate repair visits it's had so far this calendar
+// month, so the list can flag batteries that keep coming back.
+async function findPage({
+  limit,
+  offset,
+  status,
+  date,
+  q,
+  search,
+  clientName,
+  qrGenerated,
+  includeBlocked,
+  activeOnly,
+}) {
+  const conditions = [];
+  const params = [];
+
+  if (!includeBlocked) {
+    conditions.push('b.is_blocked = false');
+  }
+  if (clientName) {
+    params.push(clientName);
+    conditions.push(`lower(b.client_name) = lower($${params.length})`);
+  }
+  if (status) {
+    params.push(status);
+    conditions.push(`b.status = $${params.length}`);
+  }
+  if (date) {
+    params.push(date);
+    conditions.push(`b.created_at::date = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    conditions.push(`b.battery_code ILIKE $${params.length}`);
+  }
+  // Combined battery-ID-or-client-name search, for the Generated QR Codes
+  // list — separate from `q` above (which only matches battery_code and is
+  // used elsewhere, e.g. the QR-generation typeahead) so that behavior isn't
+  // changed for existing callers.
+  if (search) {
+    params.push(`%${search}%`);
+    conditions.push(`(b.battery_code ILIKE $${params.length} OR b.client_name ILIKE $${params.length})`);
+  }
+  if (qrGenerated === true) {
+    conditions.push('b.qr_generated_at IS NOT NULL');
+  } else if (qrGenerated === false) {
+    conditions.push('b.qr_generated_at IS NULL');
+  }
+  // Excludes batteries with nothing left for a technician to do — for the
+  // Service screen's scan/search suggestions, so an already-completed or
+  // returned battery never shows up as something to start work on.
+  if (activeOnly) {
+    conditions.push(`b.status NOT IN ('repaired', 'returned')`);
+  }
+
+  const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  params.push(limit + 1, offset);
+
+  const { rows } = await db.query(
+    `SELECT b.*,
+            last_repair.repaired_at AS last_repaired_at,
+            last_parts.part_names AS last_repaired_parts,
+            last_parts.staff_name AS last_repaired_by,
+            COALESCE(month_stats.visit_count, 0) AS repairs_this_month,
+            month_stats.visit_dates AS repairs_this_month_dates
+     FROM batteries b
+     LEFT JOIN LATERAL (
+       SELECT r.repaired_at, r.batch_id
+       FROM repairs r
+       WHERE r.battery_id = b.id
+       ORDER BY r.repaired_at DESC
+       LIMIT 1
+     ) last_repair ON true
+     LEFT JOIN LATERAL (
+       SELECT string_agg(DISTINCT p.name, ', ') AS part_names, MAX(s.name) AS staff_name
+       FROM repairs r2
+       JOIN parts p ON p.id = r2.part_id
+       JOIN staff s ON s.id = r2.staff_id
+       WHERE r2.batch_id = last_repair.batch_id
+     ) last_parts ON true
+     LEFT JOIN LATERAL (
+       SELECT COUNT(DISTINCT r3.batch_id) AS visit_count,
+              array_agg(DISTINCT to_char(r3.repaired_at, 'YYYY-MM-DD')
+                        ORDER BY to_char(r3.repaired_at, 'YYYY-MM-DD')) AS visit_dates
+       FROM repairs r3
+       WHERE r3.battery_id = b.id
+         AND date_trunc('month', r3.repaired_at) = date_trunc('month', now())
+     ) month_stats ON true
+     ${whereClause}
+     ORDER BY ${qrGenerated ? 'b.qr_generated_at DESC' : 'b.created_at DESC'}, b.id DESC
+     LIMIT $${params.length - 1} OFFSET $${params.length}`,
+    params
+  );
+
+  const hasMore = rows.length > limit;
+  return { rows: rows.slice(0, limit), hasMore };
+}
+
+// Joins in the originating truck intake (truck number, driver, date) so the
+// detail page can show the battery's full lifecycle, not just its status.
+async function findByCode(batteryCode) {
+  const { rows } = await db.query(
+    `SELECT b.*,
+            ti.truck_number AS intake_truck_number,
+            ti.driver_name AS intake_driver_name,
+            ti.intake_at AS intake_at
+     FROM batteries b
+     LEFT JOIN truck_intakes ti ON ti.id = b.truck_intake_id
+     WHERE b.battery_code = $1`,
+    [batteryCode]
+  );
+  return rows[0];
+}
+
+async function findById(id) {
+  const { rows } = await db.query('SELECT * FROM batteries WHERE id = $1', [id]);
+  return rows[0];
+}
+
+// Batched form of findById, for validating a batch of scanned QR codes in
+// one round-trip instead of one query per battery.
+async function findByIds(ids) {
+  if (ids.length === 0) return [];
+  const { rows } = await db.query('SELECT * FROM batteries WHERE id = ANY($1::int[])', [ids]);
+  return rows;
+}
+
+// Every battery associated with a given truck intake, for that intake's
+// detail page — lets a manager see exactly which batteries came off which
+// truck. Goes through battery_visits rather than batteries.truck_intake_id
+// alone, so a returning battery scanned onto this intake shows up here too,
+// even though its truck_intake_id still points at its original intake.
+async function findByTruckIntakeId(truckIntakeId) {
+  const { rows } = await db.query(
+    `SELECT DISTINCT b.*,
+            last_repair.repaired_at AS last_repaired_at,
+            last_parts.part_names AS last_repaired_parts
+     FROM battery_visits bv
+     JOIN batteries b ON b.id = bv.battery_id
+     LEFT JOIN LATERAL (
+       SELECT r.repaired_at, r.batch_id
+       FROM repairs r
+       WHERE r.battery_id = b.id
+       ORDER BY r.repaired_at DESC
+       LIMIT 1
+     ) last_repair ON true
+     LEFT JOIN LATERAL (
+       SELECT string_agg(DISTINCT p.name, ', ') AS part_names
+       FROM repairs r2
+       JOIN parts p ON p.id = r2.part_id
+       WHERE r2.batch_id = last_repair.batch_id
+     ) last_parts ON true
+     WHERE bv.truck_intake_id = $1
+     ORDER BY b.battery_code`,
+    [truckIntakeId]
+  );
+  return rows;
+}
+
+async function create({ batteryCode, truckIntakeId }) {
+  const { rows } = await db.query(
+    `INSERT INTO batteries (battery_code, truck_intake_id)
+     VALUES ($1, $2) RETURNING *`,
+    [batteryCode, truckIntakeId]
+  );
+  const battery = rows[0];
+  await db.query(
+    'INSERT INTO battery_visits (battery_id, truck_intake_id) VALUES ($1, $2)',
+    [battery.id, truckIntakeId]
+  );
+  return battery;
+}
+
+// Batched form of create, for a truck intake's brand-new batteries — one
+// multi-row INSERT (plus one multi-row battery_visits INSERT) instead of a
+// per-battery round-trip.
+async function createMany(batteryCodes, truckIntakeId) {
+  if (batteryCodes.length === 0) return [];
+  const { rows } = await db.query(
+    `INSERT INTO batteries (battery_code, truck_intake_id)
+     SELECT unnest($1::text[]), $2::int
+     RETURNING *`,
+    [batteryCodes, truckIntakeId]
+  );
+  await db.query(
+    `INSERT INTO battery_visits (battery_id, truck_intake_id)
+     SELECT unnest($1::int[]), $2::int`,
+    [rows.map((r) => r.id), truckIntakeId]
+  );
+  return rows;
+}
+
+// Registers a battery straight from the Generate QR Code page — not tied to
+// a truck intake. battery_code is the client-prefixed internal ID computed
+// by the caller (e.g. "UBE-0001"); serial_number is the manufacturer's own
+// serial as printed on the unit, kept only for reference. QR is marked
+// generated immediately since that's this endpoint's whole purpose.
+//
+// Status starts at 'returned' rather than the table default of 'in_repair'
+// — a battery registered here represents one already with the client, not
+// one currently at the shop, so it can be scanned straight into a future
+// Truck Intake's "Scan Batteries (returning)" step without being rejected
+// as not-yet-returned.
+async function createForClient({ batteryCode, serialNumber, clientName }) {
+  const { rows } = await db.query(
+    `INSERT INTO batteries (battery_code, serial_number, client_name, qr_generated_at, status)
+     VALUES ($1, $2, $3, now(), 'returned')
+     RETURNING *`,
+    [batteryCode, serialNumber || null, clientName || null]
+  );
+  return rows[0];
+}
+
+// Distinct serial numbers already on file, for the Battery Number field's
+// "or select" autocomplete.
+async function listSerialNumbers() {
+  const { rows } = await db.query(
+    `SELECT DISTINCT serial_number FROM batteries
+     WHERE serial_number IS NOT NULL AND serial_number <> ''
+     ORDER BY serial_number LIMIT 200`
+  );
+  return rows.map((r) => r.serial_number);
+}
+
+// Attaches an already-tracked battery (identified by scanning its existing
+// QR code) to a NEW truck intake, without touching its original
+// truck_intake_id — so its full history keeps every truck that's ever
+// brought it in, not just the first. Status resets to 'in_repair' since
+// it's back for another round.
+async function addVisit(batteryId, truckIntakeId) {
+  await db.query(
+    'INSERT INTO battery_visits (battery_id, truck_intake_id) VALUES ($1, $2)',
+    [batteryId, truckIntakeId]
+  );
+  const { rows } = await db.query(
+    `UPDATE batteries SET status = 'in_repair' WHERE id = $1 RETURNING *`,
+    [batteryId]
+  );
+  return rows[0];
+}
+
+// Batched form of addVisit, for a truck intake's scanned-in returning
+// batteries — one multi-row battery_visits INSERT plus one bulk status
+// UPDATE instead of two queries per battery.
+async function addVisitMany(batteryIds, truckIntakeId) {
+  if (batteryIds.length === 0) return [];
+  await db.query(
+    `INSERT INTO battery_visits (battery_id, truck_intake_id)
+     SELECT unnest($1::int[]), $2::int`,
+    [batteryIds, truckIntakeId]
+  );
+  const { rows } = await db.query(
+    `UPDATE batteries SET status = 'in_repair' WHERE id = ANY($1::int[]) RETURNING *`,
+    [batteryIds]
+  );
+  return rows;
+}
+
+// Every truck intake this battery has ever been part of, oldest first — the
+// basis for the detail page's full intake history (not just the first one).
+async function findVisitHistory(batteryId) {
+  const { rows } = await db.query(
+    `SELECT bv.id AS visit_id, ti.id AS truck_intake_id, ti.truck_number,
+            ti.driver_name, ti.intake_at
+     FROM battery_visits bv
+     JOIN truck_intakes ti ON ti.id = bv.truck_intake_id
+     WHERE bv.battery_id = $1
+     ORDER BY ti.intake_at ASC`,
+    [batteryId]
+  );
+  return rows;
+}
+
+async function findRepairHistory(batteryId) {
+  const { rows } = await db.query(
+    `SELECT r.id, r.batch_id, r.quantity_used, r.notes, r.repaired_at, r.price, r.labor_charge,
+            r.duration_seconds, s.name AS staff_name, p.name AS part_name
+     FROM repairs r
+     JOIN staff s ON s.id = r.staff_id
+     JOIN parts p ON p.id = r.part_id
+     WHERE r.battery_id = $1
+     ORDER BY r.repaired_at DESC`,
+    [batteryId]
+  );
+  return rows;
+}
+
+// Every return shipment this battery has ever been part of (a battery can
+// go out, come back for another repair, and go out again), newest first.
+async function findReturnHistory(batteryId) {
+  const { rows } = await db.query(
+    `SELECT ret.id, ret.truck_number, ret.driver_name, ret.returned_at
+     FROM return_batteries rb
+     JOIN returns ret ON ret.id = rb.return_id
+     WHERE rb.battery_id = $1
+     ORDER BY ret.returned_at DESC`,
+    [batteryId]
+  );
+  return rows;
+}
+
+// Manual status correction (e.g. an admin fixing a mistake). Battery code
+// and truck intake are not editable — the code is the immutable tracking ID.
+async function updateStatus(id, status) {
+  const { rows } = await db.query(
+    'UPDATE batteries SET status = $2 WHERE id = $1 RETURNING *',
+    [id, status]
+  );
+  return rows[0];
+}
+
+async function remove(id) {
+  await db.query('DELETE FROM batteries WHERE id = $1', [id]);
+}
+
+// Hides a battery from every list/lookup app-wide without touching its
+// history — for a super admin to pull a bad or duplicate entry out of view
+// without permanently deleting it.
+async function setBlocked(id, blocked) {
+  const { rows } = await db.query(
+    'UPDATE batteries SET is_blocked = $2 WHERE id = $1 RETURNING *',
+    [id, blocked]
+  );
+  return rows[0];
+}
+
+// A technician claiming a battery to start work — only succeeds from
+// 'in_repair' (not yet touched), so it can't be "started" twice or on a
+// battery that's already repaired/returned. Returns undefined if the
+// battery doesn't exist or isn't in a startable state.
+async function startWork(id) {
+  const { rows } = await db.query(
+    `UPDATE batteries SET status = 'in_progress', work_started_at = now()
+     WHERE id = $1 AND status = 'in_repair'
+     RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
+// A technician verifying a battery works after its parts were replaced —
+// only succeeds from 'in_testing' (reached automatically once repairs are
+// logged, see repair.model.js create). Stamps how long testing took, same
+// pattern as work_started_at -> repairs.duration_seconds for the repair
+// phase itself.
+async function completeTesting(id) {
+  const { rows } = await db.query(
+    `UPDATE batteries
+     SET status = 'repaired',
+         testing_duration_seconds = EXTRACT(EPOCH FROM (now() - testing_started_at))::int,
+         testing_started_at = NULL
+     WHERE id = $1 AND status = 'in_testing'
+     RETURNING *`,
+    [id]
+  );
+  return rows[0];
+}
+
+// Sets which client a battery belongs to and marks its QR code as
+// generated — used when generating its QR code, so scanning it later shows
+// who it's for. Open to any authenticated user (unlike the super_admin-only
+// status correction), since assigning a client is a routine front-desk
+// action, not an admin override. Guarded by `qr_generated_at IS NULL` so a
+// battery can only ever get one QR code — returns undefined (no row
+// updated) if one was already generated or the battery doesn't exist, and
+// the caller distinguishes the two.
+//
+// newCode, when given, also renames the battery's public code (e.g. from a
+// generic intake code like "BAT-16-147" to a client-prefixed one like
+// "UBE-0001") — permanently, since this is the code the freshly-printed QR
+// will encode. Throws a unique-violation (23505) if that code is taken.
+async function updateClientName(id, clientName, newCode) {
+  const { rows } = await db.query(
+    `UPDATE batteries
+     SET client_name = $2, qr_generated_at = now()${newCode ? ', battery_code = $3' : ''}
+     WHERE id = $1 AND qr_generated_at IS NULL
+     RETURNING *`,
+    newCode ? [id, clientName || null, newCode] : [id, clientName || null]
+  );
+  return rows[0];
+}
+
+// Counts how many batteries already belong to this client (exact,
+// case-insensitive match), so the Generate QR Code form can suggest the
+// next battery number for that client (e.g. Uber's 6th battery -> 0006).
+async function countByClientName(clientName) {
+  const { rows } = await db.query(
+    'SELECT COUNT(*)::int AS count FROM batteries WHERE lower(client_name) = lower($1)',
+    [clientName]
+  );
+  return rows[0].count;
+}
+
+// Batteries that have come in on more than one truck intake within the
+// current calendar month — a repeat-intake flag surfaced in the navbar so
+// staff notice a battery bouncing back in unusually fast, same spirit as
+// findPage's "repaired 3x this month" flag but for intakes rather than
+// repairs.
+async function findRepeatIntakesThisMonth() {
+  const { rows } = await db.query(`
+    SELECT b.id, b.battery_code, b.client_name,
+           COUNT(bv.id)::int AS intake_count,
+           array_agg(ti.intake_at ORDER BY ti.intake_at) AS intake_times
+    FROM battery_visits bv
+    JOIN batteries b ON b.id = bv.battery_id
+    JOIN truck_intakes ti ON ti.id = bv.truck_intake_id
+    WHERE date_trunc('month', ti.intake_at) = date_trunc('month', now())
+    GROUP BY b.id, b.battery_code, b.client_name
+    HAVING COUNT(bv.id) > 1
+    ORDER BY COUNT(bv.id) DESC, b.battery_code
+  `);
+  return rows;
+}
+
+module.exports = {
+  findPage,
+  findByCode,
+  findById,
+  findByIds,
+  findByTruckIntakeId,
+  create,
+  createMany,
+  addVisit,
+  addVisitMany,
+  findVisitHistory,
+  findRepairHistory,
+  findReturnHistory,
+  startWork,
+  completeTesting,
+  updateStatus,
+  updateClientName,
+  countByClientName,
+  createForClient,
+  listSerialNumbers,
+  findRepeatIntakesThisMonth,
+  remove,
+  setBlocked,
+};

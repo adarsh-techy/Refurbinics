@@ -1,0 +1,59 @@
+import { ActivityIndicator, Text, View } from 'react-native';
+import { NavigationContainer, DarkTheme } from '@react-navigation/native';
+import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { useSelector } from 'react-redux';
+import LoginScreen from '../screens/LoginScreen';
+import SetPasswordScreen from '../screens/SetPasswordScreen';
+import BatteryDetailScreen from '../screens/BatteryDetailScreen';
+import MainTabs from './MainTabs';
+
+const Stack = createNativeStackNavigator();
+
+const navTheme = {
+  ...DarkTheme,
+  colors: {
+    ...DarkTheme.colors,
+    background: '#040509',
+    card: '#040509',
+    border: 'rgba(30, 64, 175, 0.4)',
+    primary: '#60a5fa',
+  },
+};
+
+function LoadingScreen() {
+  return (
+    <View className="flex-1 items-center justify-center bg-surface-950">
+      <ActivityIndicator color="#60a5fa" />
+      <Text className="mt-3 text-sm text-neutral-400">Checking session…</Text>
+    </View>
+  );
+}
+
+export default function RootNavigator() {
+  const { user, token, bootstrapped, authChecked } = useSelector((state) => state.auth);
+
+  if (!bootstrapped || (token && !authChecked)) {
+    return <LoadingScreen />;
+  }
+
+  return (
+    <NavigationContainer theme={navTheme}>
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        {!user ? (
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : user.must_change_password ? (
+          <Stack.Screen name="SetPassword" component={SetPasswordScreen} />
+        ) : (
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="BatteryDetail"
+              component={BatteryDetailScreen}
+              options={{ headerShown: true, headerStyle: { backgroundColor: '#040509' }, headerTintColor: '#e5e5e5', title: '' }}
+            />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}

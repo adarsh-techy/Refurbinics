@@ -1,0 +1,16 @@
+const router = require('express').Router();
+
+router.use('/auth', require('./auth.routes'));
+router.use('/dashboard', require('./dashboard.routes'));
+router.use('/users', require('./user.routes'));
+router.use('/staff', require('./staff.routes'));
+router.use('/truck-intakes', require('./truck-intake.routes'));
+router.use('/clients', require('./client.routes'));
+router.use('/batteries', require('./battery.routes'));
+router.use('/parts', require('./part.routes'));
+router.use('/repairs', require('./repair.routes'));
+router.use('/returns', require('./return.routes'));
+router.use('/audit-logs', require('./audit-log.routes'));
+router.use('/finance', require('./finance.routes'));
+
+module.exports = router;
