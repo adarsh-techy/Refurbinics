@@ -8,6 +8,7 @@ import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
 import ConfirmModal from '../../components/ui/ConfirmModal';
+import AlertModal from '../../components/ui/AlertModal';
 import RowActions from '../../components/ui/RowActions';
 import apiClient from '../../services/api-client';
 import ClientForm from './ClientForm';
@@ -88,7 +89,7 @@ function ClientsPage() {
             '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
         }}
       >
-        <Button onClick={() => setFormTarget('new')}>+ Add Client</Button>
+        <Button variant="darkViolet" onClick={() => setFormTarget('new')}>+ Add Client</Button>
       </PageHeader>
 
       {formTarget && (
@@ -117,7 +118,9 @@ function ClientsPage() {
         />
       )}
 
-      {deleteError && <p className="mb-4 text-sm text-critical-600 dark:text-red-400">{deleteError}</p>}
+      {deleteError && (
+        <AlertModal title="Cannot Delete Client" message={deleteError} onClose={() => setDeleteError(null)} />
+      )}
 
       {loading && <TableState>Loading…</TableState>}
       {error && <TableState tone="error">{error}</TableState>}

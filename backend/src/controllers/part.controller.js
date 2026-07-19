@@ -8,16 +8,19 @@ async function list(req, res, next) {
   }
 }
 
-// Part detail page: the part's own info plus every repair that's used it,
-// for the "how often, on what, by whom" view.
+// Part detail page: the part's own info plus every repair that's used it and
+// every manual restock, for the "how often used, how often topped up" view.
 async function getById(req, res, next) {
   try {
     const part = await partModel.findById(req.params.id);
     if (!part) {
       return res.status(404).json({ message: 'Part not found' });
     }
-    const usageHistory = await partModel.findUsageHistory(req.params.id);
-    res.json({ part, usageHistory });
+    const [usageHistory, stockHistory] = await Promise.all([
+      partModel.findUsageHistory(req.params.id),
+      partModel.findStockHistory(req.params.id),
+    ]);
+    res.json({ part, usageHistory, stockHistory });
   } catch (err) {
     next(err);
   }
@@ -71,4 +74,27 @@ async function remove(req, res, next) {
   }
 }
 
-module.exports = { list, getById, create, update, remove };
+// Tops up an out-of-stock (or any) part's quantity and logs who added how
+// much, separate from the full edit form so restocking doesn't require
+// re-typing the part's name/SKU/cost just to bump the count.
+async function restock(req, res, next) {
+  try {
+    const quantityAdded = Number(req.body.quantityAdded);
+    if (!Number.isInteger(quantityAdded) || quantityAdded <= 0) {
+      return res.status(400).json({ message: 'quantityAdded must be a positive whole number' });
+    }
+    const part = await partModel.addStock(req.params.id, {
+      quantityAdded,
+      note: req.body.note,
+      adjustedByUserId: req.user.id,
+    });
+    res.json(part);
+  } catch (err) {
+    if (err.status === 404) {
+      return res.status(404).json({ message: err.message });
+    }
+    next(err);
+  }
+}
+
+module.exports = { list, getById, create, update, remove, restock };

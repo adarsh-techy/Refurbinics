@@ -12,21 +12,30 @@ import AlertModal from '../../components/ui/AlertModal';
 import Badge from '../../components/ui/Badge';
 import RowActions from '../../components/ui/RowActions';
 import apiClient from '../../services/api-client';
+import { hasPermission } from '../../utils/permissions';
 import PartForm from './PartForm';
+import RestockForm from './RestockForm';
 
 function PartsPage() {
   const { data, loading, error, refetch } = useFetchList('/parts');
   const user = useSelector((state) => state.auth.user);
   const isSuperAdmin = user?.role === 'super_admin';
+  const canManageParts = hasPermission(user, 'parts');
 
   // null = closed, 'new' = create form, a part object = edit form
   const [formTarget, setFormTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
+  const [restockTarget, setRestockTarget] = useState(null);
 
   function handleSaved() {
     refetch();
     setFormTarget(null);
+  }
+
+  function handleRestocked() {
+    refetch();
+    setRestockTarget(null);
   }
 
   async function handleConfirmDelete() {
@@ -67,13 +76,24 @@ function PartsPage() {
         </Badge>
       ),
     },
-    ...(isSuperAdmin
+    ...(canManageParts
       ? [
           {
             key: 'actions',
             label: '',
             render: (row) => (
-              <RowActions onEdit={() => setFormTarget(row)} onDelete={() => setDeleteTarget(row)} />
+              <div className="flex items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => setRestockTarget(row)}
+                  className="text-sm font-medium text-blue-700 hover:underline dark:text-blue-400"
+                >
+                  Restock
+                </button>
+                {isSuperAdmin && (
+                  <RowActions onEdit={() => setFormTarget(row)} onDelete={() => setDeleteTarget(row)} />
+                )}
+              </div>
             ),
           },
         ]
@@ -91,7 +111,7 @@ function PartsPage() {
             '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
         }}
       >
-        <Button onClick={() => setFormTarget('new')}>+ Add Part</Button>
+        <Button variant="darkViolet" onClick={() => setFormTarget('new')}>+ Add Part</Button>
       </PageHeader>
 
       {formTarget && (
@@ -107,6 +127,16 @@ function PartsPage() {
             onSaved={handleSaved}
             onCancel={() => setFormTarget(null)}
           />
+        </Modal>
+      )}
+
+      {restockTarget && (
+        <Modal
+          title="Restock Part"
+          description={`Add stock for "${restockTarget.name}".`}
+          onClose={() => setRestockTarget(null)}
+        >
+          <RestockForm part={restockTarget} onSaved={handleRestocked} onCancel={() => setRestockTarget(null)} />
         </Modal>
       )}
 

@@ -21,11 +21,16 @@ function DashboardLayout() {
   const user = useSelector((state) => state.auth.user);
 
   // Technicians work mostly from a phone scanning batteries, so they get the
-  // mobile-first header + slide-out drawer instead of a desktop sidebar.
+  // mobile-first header + slide-out drawer instead of a desktop sidebar —
+  // styled to match the companion mobile app: a dark header bar (wrapped in
+  // its own `dark` scope so PortalHeader's existing dark: styles apply)
+  // over a light content area, instead of the black/green admin theme.
   if (user?.role === 'technician') {
     return (
-      <div className="flex min-h-screen flex-col overflow-x-hidden bg-surface-950">
-        <PortalHeader />
+      <div className="flex min-h-screen flex-col overflow-x-hidden bg-slate-50">
+        <div className="dark">
+          <PortalHeader />
+        </div>
         <main className="flex-1 p-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:p-6">
           <Suspense fallback={<PageFallback />}>
             <Outlet />
@@ -40,7 +45,7 @@ function DashboardLayout() {
   // LowStockAlert.
   if (user?.role === 'client') {
     return (
-      <div className="flex min-h-screen bg-surface-950">
+      <div className="dark flex min-h-screen bg-surface-950">
         <Sidebar />
         <main className="flex-1 bg-surface-950 p-6">
           <Suspense fallback={<PageFallback />}>
@@ -52,7 +57,7 @@ function DashboardLayout() {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-950">
+    <div className="dark flex min-h-screen bg-surface-950">
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Navbar />

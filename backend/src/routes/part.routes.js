@@ -8,10 +8,11 @@ router.use(requireAuth);
 router.get('/', partController.list);
 router.get('/:id', partController.getById);
 router.post('/', requirePermission('parts'), partController.create);
-// Full edit/delete is super_admin only, distinct from the 'parts' permission
-// (which only covers adding new parts). Stock quantity can only be changed
-// by editing the part.
+// Full edit/delete (renaming, re-pricing, deleting) is super_admin only.
+// Restocking is looser — anyone with the 'parts' permission can top up a
+// part's quantity without needing rights to edit its other fields.
 router.patch('/:id', requireRole('super_admin'), partController.update);
+router.patch('/:id/restock', requirePermission('parts'), partController.restock);
 router.delete('/:id', requireRole('super_admin'), partController.remove);
 
 module.exports = router;

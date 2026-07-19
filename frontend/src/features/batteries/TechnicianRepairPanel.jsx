@@ -3,7 +3,7 @@ import apiClient from '../../services/api-client';
 import useFetchList from '../../utils/use-fetch-list';
 
 const inputClasses =
-  'w-full rounded-lg border border-surface-600 bg-surface-800 px-4 py-3 text-base text-neutral-100 placeholder:text-neutral-500 focus:border-emerald-500 focus:outline-none focus:ring-2 focus:ring-emerald-500/30';
+  'w-full rounded-lg border border-slate-300 bg-white px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30';
 
 // A technician's scan-and-repair flow for one battery: start work (flips
 // in_repair -> in_progress), pick which part(s) were changed (same
@@ -115,12 +115,12 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
 
   if (battery.status === 'in_repair') {
     return (
-      <div className="mb-6 rounded-xl border border-surface-700 bg-surface-900 p-5 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-neutral-100">Ready to start?</h2>
-        <p className="mb-4 text-sm text-neutral-400">
+      <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">Ready to start?</h2>
+        <p className="mb-4 text-sm text-slate-500">
           This battery hasn't been touched yet. Starting work marks it as in progress.
         </p>
-        {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <button
           type="button"
           onClick={handleStartWork}
@@ -135,12 +135,12 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
 
   if (battery.status === 'in_testing') {
     return (
-      <div className="mb-6 rounded-xl border border-surface-700 bg-surface-900 p-5 shadow-sm">
-        <h2 className="mb-1 text-sm font-semibold text-neutral-100">Ready to confirm?</h2>
-        <p className="mb-4 text-sm text-neutral-400">
+      <div className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm">
+        <h2 className="mb-1 text-sm font-semibold text-slate-900">Ready to confirm?</h2>
+        <p className="mb-4 text-sm text-slate-500">
           Parts have been changed — verify the battery works, then mark it tested.
         </p>
-        {error && <p className="mb-3 text-sm text-red-400">{error}</p>}
+        {error && <p className="mb-3 text-sm text-red-600">{error}</p>}
         <button
           type="button"
           onClick={handleCompleteTesting}
@@ -162,13 +162,13 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
   return (
     <form
       onSubmit={handleComplete}
-      className="mb-6 rounded-xl border border-surface-700 bg-surface-900 p-5 shadow-sm"
+      className="mb-6 rounded-xl border border-blue-100 bg-blue-50 p-5 shadow-sm"
     >
       {!showIssueForm && (
         <>
           <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-neutral-100">Parts Changed</h2>
-            <span className="rounded-full bg-surface-700 px-2.5 py-0.5 text-xs font-medium text-neutral-300">
+            <h2 className="text-sm font-semibold text-slate-900">Parts Changed</h2>
+            <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-medium text-slate-600">
               {selectedParts.length} part{selectedParts.length === 1 ? '' : 's'} selected
             </span>
           </div>
@@ -177,9 +177,9 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
             {partIds.map((partId, index) => (
               <div
                 key={index}
-                className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-800/60 p-3"
+                className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3"
               >
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-300">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-700">
                   {index + 1}
                 </span>
                 <select
@@ -202,7 +202,7 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
                   onClick={() => removePartRow(index)}
                   disabled={partIds.length === 1}
                   aria-label="Remove part"
-                  className="shrink-0 rounded-md p-2 text-neutral-500 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
+                  className="shrink-0 rounded-md p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-30"
                 >
                   <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                     <path
@@ -220,7 +220,7 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
             <button
               type="button"
               onClick={addPartRow}
-              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-surface-600 py-3 text-sm font-medium text-neutral-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-300"
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-slate-300 py-3 text-sm font-medium text-slate-500 hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-700"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
                 <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
@@ -239,7 +239,7 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
             />
           </div>
 
-          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
           <button
             type="submit"
@@ -251,19 +251,19 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
         </>
       )}
 
-      <div className={showIssueForm ? 'pt-0' : 'mt-5 border-t border-surface-700 pt-4'}>
+      <div className={showIssueForm ? 'pt-0' : 'mt-5 border-t border-blue-100 pt-4'}>
         {!showIssueForm ? (
           <button
             type="button"
             onClick={() => setShowIssueForm(true)}
-            className="w-full rounded-lg border border-red-500/50 py-3 text-sm font-medium text-red-400 hover:bg-red-500/10"
+            className="w-full rounded-lg border border-red-300 py-3 text-sm font-medium text-red-600 hover:bg-red-50"
           >
             Can't service this battery?
           </button>
         ) : (
           <div>
-            <h3 className="mb-1 text-sm font-semibold text-neutral-100">Report an Issue</h3>
-            <p className="mb-3 text-sm text-neutral-400">
+            <h3 className="mb-1 text-sm font-semibold text-slate-900">Report an Issue</h3>
+            <p className="mb-3 text-sm text-slate-500">
               Pick a reason — this marks the battery as unserviceable.
             </p>
 
@@ -290,7 +290,7 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
               className={`${inputClasses} mt-3`}
             />
 
-            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+            {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
 
             <div className="mt-4 flex gap-3">
               <button
@@ -300,7 +300,7 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
                   setSelectedReasonId('');
                   setIssueNote('');
                 }}
-                className="flex-1 rounded-lg bg-surface-800 py-3 text-sm font-medium text-neutral-200 hover:bg-surface-700"
+                className="flex-1 rounded-lg bg-slate-100 py-3 text-sm font-medium text-slate-700 hover:bg-slate-200"
               >
                 Cancel
               </button>

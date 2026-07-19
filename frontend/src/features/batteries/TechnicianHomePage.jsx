@@ -77,8 +77,8 @@ function TechnicianHomePage() {
           />
         </svg>
       </span>
-      <h1 className="text-lg font-semibold text-neutral-100">Scan a Battery to Begin</h1>
-      <p className="mt-2 max-w-xs text-sm text-neutral-400">
+      <h1 className="text-lg font-semibold text-slate-900">Scan a Battery to Begin</h1>
+      <p className="mt-2 max-w-xs text-sm text-slate-500">
         Scan the QR code on a battery to start work, log the parts you changed, and mark it
         complete.
       </p>
@@ -96,10 +96,10 @@ function TechnicianHomePage() {
           </button>
         )}
 
-        <div className="flex w-full items-center gap-2 text-xs text-neutral-500">
-          <div className="h-px flex-1 bg-white/10" />
+        <div className="flex w-full items-center gap-2 text-xs text-slate-400">
+          <div className="h-px flex-1 bg-slate-200" />
           or use a handheld scanner
-          <div className="h-px flex-1 bg-white/10" />
+          <div className="h-px flex-1 bg-slate-200" />
         </div>
 
         <div className="relative w-full">
@@ -113,20 +113,20 @@ function TechnicianHomePage() {
             onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             placeholder="Scan or type battery code, then Enter"
             autoComplete="off"
-            className="w-full rounded-md border border-blue-800/40 bg-blue-900/10 px-3.5 py-2.5 text-center text-sm text-neutral-100 placeholder:text-neutral-500 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
+            className="w-full rounded-md border border-blue-200 bg-blue-50 px-3.5 py-2.5 text-center text-sm text-slate-900 placeholder:text-slate-400 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-400/30"
           />
 
           {showSuggestions && suggestions.length > 0 && (
-            <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-800/40 bg-surface-900 py-1 text-left shadow-lg">
+            <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-200 bg-white py-1 text-left shadow-lg">
               {suggestions.map((b) => (
                 <li key={b.id}>
                   <button
                     type="button"
                     onMouseDown={(e) => e.preventDefault()}
                     onClick={() => goToBattery(b.battery_code)}
-                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-blue-900/30"
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm hover:bg-blue-50"
                   >
-                    <span className="font-medium text-neutral-100">{b.battery_code}</span>
+                    <span className="font-medium text-slate-900">{b.battery_code}</span>
                     <StatusBadge status={b.status} />
                   </button>
                 </li>

@@ -13,7 +13,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import AlertModal from '../../components/ui/AlertModal';
 import RowActions from '../../components/ui/RowActions';
 import useFetchList from '../../utils/use-fetch-list';
-import { downloadQrSheet, previewQrSheet, SHEET_SIZE } from '../../utils/generate-qr-sheet';
+import { downloadQrSheet, previewQrSheet, DEFAULT_COLUMNS, ROWS, SHEET_SIZE } from '../../utils/generate-qr-sheet';
 
 const inputClasses =
   'w-full rounded-md border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-blue-800/40 dark:bg-blue-900/10 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30';
@@ -54,6 +54,7 @@ function GenerateQrPage() {
 
   const [sheetStart, setSheetStart] = useState('1');
   const [sheetCount, setSheetCount] = useState(String(SHEET_SIZE));
+  const [sheetColumns, setSheetColumns] = useState(String(DEFAULT_COLUMNS));
   const [sheetLoading, setSheetLoading] = useState(false);
   const [sheetError, setSheetError] = useState(null);
 
@@ -201,6 +202,7 @@ function GenerateQrPage() {
   async function runSheetAction(action) {
     const startPosition = Math.max(Number(sheetStart) || 1, 1);
     const count = Math.max(Number(sheetCount) || SHEET_SIZE, 1);
+    const columns = Math.max(Number(sheetColumns) || DEFAULT_COLUMNS, 1);
     setSheetError(null);
     setSheetLoading(true);
     try {
@@ -209,7 +211,7 @@ function GenerateQrPage() {
         setSheetError(`No generated QR codes found starting from position ${startPosition}.`);
         return;
       }
-      await action(batteries);
+      await action(batteries, columns);
     } catch (err) {
       setSheetError(err.response?.data?.message || err.message);
     } finally {
@@ -503,9 +505,20 @@ function GenerateQrPage() {
               className={`${inputClasses} max-w-[8rem]`}
             />
           </div>
+          <div>
+            <label className={labelClasses}>Per row</label>
+            <input
+              type="number"
+              min="1"
+              value={sheetColumns}
+              onChange={(e) => setSheetColumns(e.target.value)}
+              className={`${inputClasses} max-w-[8rem]`}
+            />
+          </div>
           <p className="mb-2.5 text-xs text-slate-500 dark:text-neutral-400">
-            One A4 sheet = {SHEET_SIZE} QR codes (5 across x 9 down), oldest-generated first, each labeled with
-            its Battery Number. Asking for more than {SHEET_SIZE} spills onto extra sheets in the same PDF.
+            One A4 sheet = {(Math.max(Number(sheetColumns) || DEFAULT_COLUMNS, 1)) * ROWS} QR codes (
+            {Math.max(Number(sheetColumns) || DEFAULT_COLUMNS, 1)} across x {ROWS} down), oldest-generated
+            first, each labeled with its Battery Number. Asking for more spills onto extra sheets in the same PDF.
           </p>
           <div className="ml-auto flex shrink-0 gap-2">
             <button

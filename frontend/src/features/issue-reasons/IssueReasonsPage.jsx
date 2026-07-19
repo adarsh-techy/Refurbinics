@@ -81,7 +81,7 @@ function IssueReasonsPage() {
             '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
         }}
       >
-        {canManage && <Button onClick={() => setFormTarget('new')}>+ Add Reason</Button>}
+        {canManage && <Button variant="darkViolet" onClick={() => setFormTarget('new')}>+ Add Reason</Button>}
       </PageHeader>
 
       {formTarget && (
