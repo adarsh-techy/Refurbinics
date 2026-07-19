@@ -21,6 +21,8 @@ router.patch('/:id/client', batteryController.updateClient);
 router.patch('/:id/start-work', requireRole('technician'), batteryController.startWork);
 // A technician confirming a battery works after its parts were replaced.
 router.patch('/:id/complete-testing', requireRole('technician'), batteryController.completeTesting);
+// A technician reporting mid-repair that a battery can't be serviced.
+router.patch('/:id/report-issue', requireRole('technician'), batteryController.reportIssue);
 // Editing/removing batteries (manual status correction) is super_admin only.
 router.patch('/:id', requireRole('super_admin'), batteryController.update);
 router.delete('/:id', requireRole('super_admin'), batteryController.remove);

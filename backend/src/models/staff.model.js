@@ -106,4 +106,26 @@ async function findRepairs(staffId) {
   return rows;
 }
 
-module.exports = { findAll, findByUserId, create, update, remove, findById, findRepairs };
+// Every "can't service" issue this staff member has ever reported, newest
+// first — same idea as findRepairs, but for battery_issues instead of
+// repairs, so a technician's history shows both kinds of work they've done.
+async function findIssues(staffId) {
+  const { rows } = await db.query(
+    `SELECT
+       bi.id,
+       b.battery_code,
+       b.status AS battery_status,
+       ir.label AS reason_label,
+       bi.note,
+       bi.reported_at
+     FROM battery_issues bi
+     JOIN batteries b ON b.id = bi.battery_id
+     JOIN issue_reasons ir ON ir.id = bi.reason_id
+     WHERE bi.staff_id = $1
+     ORDER BY bi.reported_at DESC`,
+    [staffId]
+  );
+  return rows;
+}
+
+module.exports = { findAll, findByUserId, create, update, remove, findById, findRepairs, findIssues };

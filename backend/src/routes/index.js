@@ -8,6 +8,7 @@ router.use('/truck-intakes', require('./truck-intake.routes'));
 router.use('/clients', require('./client.routes'));
 router.use('/batteries', require('./battery.routes'));
 router.use('/parts', require('./part.routes'));
+router.use('/issue-reasons', require('./issue-reason.routes'));
 router.use('/repairs', require('./repair.routes'));
 router.use('/returns', require('./return.routes'));
 router.use('/audit-logs', require('./audit-log.routes'));

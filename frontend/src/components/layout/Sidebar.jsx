@@ -43,6 +43,7 @@ const NAV_GROUPS = [
       { to: '/staff', label: 'Staff', permission: 'staff' },
       { to: '/parts', label: 'Inventory', permission: 'parts' },
       { to: '/clients', label: 'Clients', permission: 'clients' },
+      { to: '/issue-reasons', label: 'Issue Reasons', permission: 'issue_reasons' },
     ],
   },
   {

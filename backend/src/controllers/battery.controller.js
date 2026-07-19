@@ -1,8 +1,16 @@
 const batteryModel = require('../models/battery.model');
+const staffModel = require('../models/staff.model');
 
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 100;
-const VALID_STATUSES = new Set(['in_repair', 'in_progress', 'in_testing', 'repaired', 'returned']);
+const VALID_STATUSES = new Set([
+  'in_repair',
+  'in_progress',
+  'in_testing',
+  'repaired',
+  'returned',
+  'unserviceable',
+]);
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 // Escapes ILIKE wildcard characters so a literal "%" or "_" typed by the
@@ -70,12 +78,13 @@ async function getByCode(req, res, next) {
     if (!battery) {
       return res.status(404).json({ message: 'Battery not found' });
     }
-    const [history, returns, visits] = await Promise.all([
+    const [history, returns, visits, issues] = await Promise.all([
       batteryModel.findRepairHistory(battery.id),
       batteryModel.findReturnHistory(battery.id),
       batteryModel.findVisitHistory(battery.id),
+      batteryModel.findIssueHistory(battery.id),
     ]);
-    res.json({ battery, history, returns, visits });
+    res.json({ battery, history, returns, visits, issues });
   } catch (err) {
     next(err);
   }
@@ -214,7 +223,7 @@ async function repeatIntakesThisMonth(req, res, next) {
 // A technician claiming a battery to start work on, before logging any part.
 async function startWork(req, res, next) {
   try {
-    const battery = await batteryModel.startWork(req.params.id);
+    const battery = await batteryModel.startWork(req.params.id, req.user.id);
     if (!battery) {
       return res.status(409).json({
         message: 'This battery cannot be started — it may already be in progress or completed.',
@@ -238,6 +247,44 @@ async function completeTesting(req, res, next) {
     }
     res.json(battery);
   } catch (err) {
+    next(err);
+  }
+}
+
+// A technician reporting that a battery in progress can't be serviced (e.g.
+// it's dead) — records who reported it, why (an admin-managed reason), and
+// an optional free-text note, then moves the battery to 'unserviceable'.
+async function reportIssue(req, res, next) {
+  try {
+    const reasonId = Number(req.body.reasonId);
+    if (!reasonId) {
+      return res.status(400).json({ message: 'Select a reason' });
+    }
+    const note = typeof req.body.note === 'string' ? req.body.note.trim().slice(0, 1000) : '';
+
+    // Route is technician-only (see battery.routes.js), so this always
+    // resolves — same pattern as repair.controller.js's staffId lookup.
+    const staff = await staffModel.findByUserId(req.user.id);
+    if (!staff) {
+      return res.status(409).json({ message: 'Your account is not linked to a staff record.' });
+    }
+
+    const battery = await batteryModel.reportIssue(req.params.id, {
+      staffId: staff.id,
+      reasonId,
+      note,
+    });
+    if (!battery) {
+      return res.status(409).json({
+        message: 'This battery cannot be reported — work must be in progress first.',
+      });
+    }
+    res.json(battery);
+  } catch (err) {
+    // FK violation: the reason id doesn't exist.
+    if (err.code === '23503') {
+      return res.status(400).json({ message: 'Invalid reason selected' });
+    }
     next(err);
   }
 }
@@ -268,6 +315,7 @@ module.exports = {
   repeatIntakesThisMonth,
   startWork,
   completeTesting,
+  reportIssue,
   remove,
   setBlocked,
 };

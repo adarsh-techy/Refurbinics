@@ -44,53 +44,53 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView className="flex-1 bg-surface-950" contentContainerClassName="p-5 pb-10">
-      <Text className="text-2xl font-bold text-neutral-100">Profile</Text>
-      <Text className="mb-5 text-sm text-neutral-400">Your account details.</Text>
+    <ScrollView className="flex-1 bg-slate-50" contentContainerClassName="p-5 pb-10">
+      <Text className="text-2xl font-bold text-slate-900">Profile</Text>
+      <Text className="mb-5 text-sm text-slate-500">Your account details.</Text>
 
-      <View className="mb-5 rounded-xl border border-blue-800/40 bg-blue-900/10 p-5">
-        <Text className="mb-4 text-sm font-semibold text-neutral-100">Account</Text>
+      <View className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-5">
+        <Text className="mb-4 text-sm font-semibold text-slate-900">Account</Text>
         <View className="mb-3 flex-row justify-between">
-          <Text className="text-sm text-neutral-400">Name</Text>
-          <Text className="text-sm font-medium text-neutral-100">{user?.name}</Text>
+          <Text className="text-sm text-slate-500">Name</Text>
+          <Text className="text-sm font-medium text-slate-900">{user?.name}</Text>
         </View>
         <View className="flex-row justify-between">
-          <Text className="text-sm text-neutral-400">Email</Text>
-          <Text className="text-sm font-medium text-neutral-100">{user?.email}</Text>
+          <Text className="text-sm text-slate-500">Email</Text>
+          <Text className="text-sm font-medium text-slate-900">{user?.email}</Text>
         </View>
       </View>
 
-      <View className="mb-5 rounded-xl border border-blue-800/40 bg-blue-900/10 p-5">
+      <View className="mb-5 rounded-xl border border-blue-100 bg-blue-50 p-5">
         {showPasswordForm ? (
           <>
             <View className="mb-4 flex-row items-center justify-between">
-              <Text className="text-sm font-semibold text-neutral-100">Change Password</Text>
+              <Text className="text-sm font-semibold text-slate-900">Change Password</Text>
               <TouchableOpacity onPress={closePasswordForm}>
-                <Text className="text-sm font-medium text-neutral-400">Cancel</Text>
+                <Text className="text-sm font-medium text-slate-500">Cancel</Text>
               </TouchableOpacity>
             </View>
             <View className="gap-4">
               <View>
-                <Text className="mb-1.5 text-sm font-medium text-neutral-200">New Password</Text>
+                <Text className="mb-1.5 text-sm font-medium text-slate-700">New Password</Text>
                 <TextInput
                   value={newPassword}
                   onChangeText={setNewPassword}
                   secureTextEntry
-                  className="rounded-md border border-surface-600 bg-surface-800 px-3.5 py-3 text-base text-neutral-100"
+                  className="rounded-md border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900"
                 />
               </View>
               <View>
-                <Text className="mb-1.5 text-sm font-medium text-neutral-200">Confirm Password</Text>
+                <Text className="mb-1.5 text-sm font-medium text-slate-700">Confirm Password</Text>
                 <TextInput
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   secureTextEntry
-                  className="rounded-md border border-surface-600 bg-surface-800 px-3.5 py-3 text-base text-neutral-100"
+                  className="rounded-md border border-slate-300 bg-white px-3.5 py-3 text-base text-slate-900"
                 />
               </View>
 
-              {error && <Text className="text-sm text-red-400">{error}</Text>}
-              {success && <Text className="text-sm text-blue-400">Password updated.</Text>}
+              {error && <Text className="text-sm text-red-600">{error}</Text>}
+              {success && <Text className="text-sm text-blue-600">Password updated.</Text>}
 
               <TouchableOpacity
                 onPress={handleSubmit}
@@ -106,17 +106,17 @@ export default function ProfileScreen() {
             onPress={() => setShowPasswordForm(true)}
             className="flex-row items-center justify-between"
           >
-            <Text className="text-sm font-semibold text-neutral-100">Change Password</Text>
-            <Text className="text-sm font-medium text-blue-400">Edit</Text>
+            <Text className="text-sm font-semibold text-slate-900">Change Password</Text>
+            <Text className="text-sm font-medium text-blue-600">Edit</Text>
           </TouchableOpacity>
         )}
       </View>
 
       <TouchableOpacity
         onPress={() => dispatch(logout())}
-        className="items-center rounded-md bg-white/5 px-4 py-3"
+        className="items-center rounded-md bg-slate-100 px-4 py-3"
       >
-        <Text className="text-sm font-medium text-neutral-300">Logout</Text>
+        <Text className="text-sm font-medium text-slate-600">Logout</Text>
       </TouchableOpacity>
     </ScrollView>
   );

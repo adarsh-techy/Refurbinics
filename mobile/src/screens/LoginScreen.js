@@ -16,7 +16,7 @@ export default function LoginScreen() {
   return (
     <KeyboardAvoidingView
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      className="flex-1 bg-surface-950"
+      className="flex-1 bg-slate-50"
     >
       <View className="flex-1 justify-center px-6">
         <View className="mb-8 items-center">
@@ -25,35 +25,35 @@ export default function LoginScreen() {
             style={{ width: 208, height: 80 }}
             resizeMode="contain"
           />
-          <Text className="mt-2 text-sm text-neutral-400">Technician Sign In</Text>
+          <Text className="mt-2 text-sm text-slate-500">Technician Sign In</Text>
         </View>
 
-        <View className="gap-4 rounded-2xl border border-blue-800/40 bg-blue-900/10 p-5">
+        <View className="gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5">
           <View>
-            <Text className="mb-1.5 text-sm font-medium text-neutral-200">Email</Text>
+            <Text className="mb-1.5 text-sm font-medium text-slate-700">Email</Text>
             <TextInput
               value={email}
               onChangeText={setEmail}
               autoCapitalize="none"
               keyboardType="email-address"
               autoComplete="email"
-              className="rounded-md border border-blue-800/40 bg-surface-900 px-3.5 py-3 text-base text-neutral-100"
+              className="rounded-md border border-blue-200 bg-white px-3.5 py-3 text-base text-slate-900"
               placeholderTextColor="#6b7280"
             />
           </View>
 
           <View>
-            <Text className="mb-1.5 text-sm font-medium text-neutral-200">Password</Text>
+            <Text className="mb-1.5 text-sm font-medium text-slate-700">Password</Text>
             <TextInput
               value={password}
               onChangeText={setPassword}
               secureTextEntry
-              className="rounded-md border border-blue-800/40 bg-surface-900 px-3.5 py-3 text-base text-neutral-100"
+              className="rounded-md border border-blue-200 bg-white px-3.5 py-3 text-base text-slate-900"
               placeholderTextColor="#6b7280"
             />
           </View>
 
-          {error && <Text className="text-sm text-red-400">{error}</Text>}
+          {error && <Text className="text-sm text-red-600">{error}</Text>}
 
           <TouchableOpacity
             onPress={handleSubmit}

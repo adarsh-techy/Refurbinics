@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/api-client';
 import useFetchList from '../../utils/use-fetch-list';
-import { StatusBadge } from '../../components/ui/Badge';
 import AlertModal from '../../components/ui/AlertModal';
 import QrScanner from '../../components/ui/QrScanner';
 import extractBatteryCode from '../../utils/extract-battery-code';
@@ -37,6 +36,7 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
   const [clientBatteryCodes, setClientBatteryCodes] = useState([]);
   const [showScanSuggestions, setShowScanSuggestions] = useState(false);
   const [repeatIntakeAlert, setRepeatIntakeAlert] = useState(null);
+  const [unserviceableAlert, setUnserviceableAlert] = useState(null);
 
   // Once a client is picked, suggest that client's own batteries in the scan
   // box's datalist so the front desk can pick from a short list instead of
@@ -82,7 +82,11 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
         setScanError(`${battery.battery_code} has already been scanned in.`);
         return;
       }
-      if (battery.status === 'in_repair' || battery.status === 'in_progress') {
+      if (battery.status === 'unserviceable') {
+        setUnserviceableAlert(battery.battery_code);
+        return;
+      }
+      if (['in_repair', 'in_progress', 'in_testing', 'repaired'].includes(battery.status)) {
         setScanError(`${battery.battery_code} hasn't been returned to the client yet.`);
         return;
       }
@@ -115,10 +119,25 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
     }
   }
 
-  // Once a battery's been added it drops out of the pool — one battery,
-  // one add, so it can't be picked (or typed) again.
+  // Only a battery that's actually back with the client (status 'returned')
+  // can be "returning" on a new truck — one that's still Pending/In
+  // Progress/In Testing/Completed hasn't gone anywhere yet, and one marked
+  // Unserviceable never will (it's a dead end, blocked with its own popup in
+  // handleScanValue rather than silently offered here) — so both kinds are
+  // excluded from the suggestion pool entirely. Once a battery's been added
+  // it also drops out of the pool — one battery, one add, so it can't be
+  // picked (or typed) again.
   const scannedCodes = new Set(scannedBatteries.map((b) => b.battery_code));
-  const availableClientBatteries = clientBatteryCodes.filter((b) => !scannedCodes.has(b.battery_code));
+  const NOT_RETURNABLE_STATUSES = new Set([
+    'in_repair',
+    'in_progress',
+    'in_testing',
+    'repaired',
+    'unserviceable',
+  ]);
+  const availableClientBatteries = clientBatteryCodes.filter(
+    (b) => !scannedCodes.has(b.battery_code) && !NOT_RETURNABLE_STATUSES.has(b.status)
+  );
 
   // Only an exact match against this client's own registered, not-yet-added
   // battery codes can be submitted — typing a number that isn't one of
@@ -281,10 +300,9 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => selectScanCode(b.battery_code)}
-                          className="flex w-full items-center justify-between gap-2 px-3 py-2 text-left text-sm text-neutral-100 hover:bg-blue-900/30"
+                          className="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-100 hover:bg-blue-900/30"
                         >
                           <span>{b.battery_code}</span>
-                          <StatusBadge status={b.status} />
                         </button>
                       </li>
                     ))}
@@ -335,7 +353,6 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
                   >
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-medium text-slate-800 dark:text-neutral-100">{b.battery_code}</span>
-                      <StatusBadge status={b.status} />
                     </div>
                     <button
                       type="button"
@@ -408,6 +425,14 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
           .map((d) => d.toLocaleDateString())
           .join(', ')}). It's been added — worth a quick look at what keeps bringing it back.`}
         onClose={() => setRepeatIntakeAlert(null)}
+      />
+    )}
+
+    {unserviceableAlert && (
+      <AlertModal
+        title="Battery Marked Unserviceable"
+        message={`${unserviceableAlert} was declared unserviceable and can't be brought back in on a new intake.`}
+        onClose={() => setUnserviceableAlert(null)}
       />
     )}
     </>

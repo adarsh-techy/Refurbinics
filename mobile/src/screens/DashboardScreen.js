@@ -80,15 +80,15 @@ export default function DashboardScreen() {
 
   if (loading) {
     return (
-      <View className="flex-1 items-center justify-center bg-surface-950">
-        <ActivityIndicator color="#60a5fa" />
+      <View className="flex-1 items-center justify-center bg-slate-50">
+        <ActivityIndicator color="#2563eb" />
       </View>
     );
   }
   if (error) {
     return (
-      <View className="flex-1 items-center justify-center bg-surface-950 px-6">
-        <Text className="text-center text-sm text-red-400">{error}</Text>
+      <View className="flex-1 items-center justify-center bg-slate-50 px-6">
+        <Text className="text-center text-sm text-red-600">{error}</Text>
       </View>
     );
   }
@@ -114,16 +114,16 @@ export default function DashboardScreen() {
   const recent = completedRepairs.slice(0, RECENT_LIMIT);
 
   return (
-    <ScrollView className="flex-1 bg-surface-950" contentContainerClassName="p-5 pb-10">
+    <ScrollView className="flex-1 bg-slate-50" contentContainerClassName="p-5 pb-10">
       <View className="mb-6 flex-row items-center gap-3">
         <View className="h-12 w-12 items-center justify-center rounded-full bg-blue-500/15 ring-1 ring-blue-500/30">
-          <Text className="text-base font-bold text-blue-300">{initials(staff.name)}</Text>
+          <Text className="text-base font-bold text-blue-600">{initials(staff.name)}</Text>
         </View>
         <View className="flex-1">
-          <Text className="text-2xl font-bold text-neutral-100">
+          <Text className="text-2xl font-bold text-slate-900">
             {greeting()}, {staff.name}
           </Text>
-          <Text className="text-sm text-neutral-400">Your repair activity at a glance.</Text>
+          <Text className="text-sm text-slate-500">Your repair activity at a glance.</Text>
         </View>
       </View>
 
@@ -141,13 +141,13 @@ export default function DashboardScreen() {
         />
       </View>
 
-      <View className="mb-5 rounded-2xl border border-blue-800/40 bg-blue-900/10 p-5">
+      <View className="mb-5 rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <View className="mb-4 flex-row items-center justify-between">
-          <Text className="text-sm font-semibold text-neutral-100">
-            Repairs per day <Text className="text-neutral-500">· last {DAYS_SHOWN} days</Text>
+          <Text className="text-sm font-semibold text-slate-900">
+            Repairs per day <Text className="text-slate-400">· last {DAYS_SHOWN} days</Text>
           </Text>
           <View className="rounded-full bg-blue-500/15 px-2.5 py-1">
-            <Text className="text-xs font-semibold text-blue-300">{weekCount} this week</Text>
+            <Text className="text-xs font-semibold text-blue-700">{weekCount} this week</Text>
           </View>
         </View>
         {hasActivity ? (
@@ -156,7 +156,7 @@ export default function DashboardScreen() {
               <View key={d.label} className="flex-1 items-center gap-1.5">
                 <View
                   className={`w-full rounded-full ${
-                    d.isToday ? 'bg-emerald-400' : d.count > 0 ? 'bg-blue-500' : 'bg-surface-700'
+                    d.isToday ? 'bg-emerald-400' : d.count > 0 ? 'bg-blue-500' : 'bg-slate-200'
                   }`}
                   style={{ height: Math.max(4, (d.count / maxCount) * 90) }}
                 />
@@ -165,34 +165,34 @@ export default function DashboardScreen() {
             ))}
           </View>
         ) : (
-          <Text className="py-6 text-center text-sm text-neutral-500">
+          <Text className="py-6 text-center text-sm text-slate-400">
             No repairs logged in the last {DAYS_SHOWN} days.
           </Text>
         )}
       </View>
 
-      <Text className="mb-3 text-sm font-semibold text-neutral-100">Recent Activity</Text>
+      <Text className="mb-3 text-sm font-semibold text-slate-900">Recent Activity</Text>
       {recent.length === 0 ? (
-        <View className="items-center rounded-2xl border border-blue-800/40 bg-blue-900/10 py-8">
-          <Text className="text-sm text-neutral-500">Nothing completed yet — get to work!</Text>
+        <View className="items-center rounded-2xl border border-blue-100 bg-blue-50 py-8">
+          <Text className="text-sm text-slate-400">Nothing completed yet — get to work!</Text>
         </View>
       ) : (
         <View className="gap-2">
           {recent.map((r) => (
             <View
               key={r.id}
-              className="flex-row items-center justify-between rounded-xl border border-surface-700 bg-surface-900 px-4 py-3"
+              className="flex-row items-center justify-between rounded-xl border border-slate-200 bg-white px-4 py-3"
             >
               <View className="min-w-0 flex-1">
                 <View className="mb-0.5 flex-row items-center gap-2">
-                  <Text className="font-medium text-neutral-100">{r.battery_code}</Text>
+                  <Text className="font-medium text-slate-900">{r.battery_code}</Text>
                   <StatusBadge status={r.battery_status} />
                 </View>
-                <Text className="text-xs text-neutral-500" numberOfLines={1}>
+                <Text className="text-xs text-slate-400" numberOfLines={1}>
                   {r.part_name}
                 </Text>
               </View>
-              <Text className="shrink-0 text-xs text-neutral-500">{timeAgo(r.repaired_at)}</Text>
+              <Text className="shrink-0 text-xs text-slate-400">{timeAgo(r.repaired_at)}</Text>
             </View>
           ))}
         </View>

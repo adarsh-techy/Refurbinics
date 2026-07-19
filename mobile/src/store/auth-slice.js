@@ -12,12 +12,19 @@ export const bootstrap = createAsyncThunk('auth/bootstrap', async () => {
   return { token, user: userJson ? JSON.parse(userJson) : null };
 });
 
-export const login = createAsyncThunk('auth/login', async ({ email, password }) => {
-  const { data } = await apiClient.post('/auth/login', { email, password });
-  await AsyncStorage.setItem('token', data.token);
-  await AsyncStorage.setItem('user', JSON.stringify(data.user));
-  return data;
-});
+export const login = createAsyncThunk(
+  'auth/login',
+  async ({ email, password }, { rejectWithValue }) => {
+    try {
+      const { data } = await apiClient.post('/auth/login', { email, password });
+      await AsyncStorage.setItem('token', data.token);
+      await AsyncStorage.setItem('user', JSON.stringify(data.user));
+      return data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || 'Unable to sign in. Please try again.');
+    }
+  }
+);
 
 // Validates the stored token against the backend. Rejects (and the reducer
 // below clears storage) if the token is missing, expired, or invalid, so a
@@ -76,7 +83,7 @@ const authSlice = createSlice({
       })
       .addCase(login.rejected, (state, action) => {
         state.status = 'failed';
-        state.error = action.error.message;
+        state.error = action.payload || action.error.message;
       })
       .addCase(verifySession.pending, (state) => {
         state.authChecked = false;

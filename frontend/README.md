@@ -30,4 +30,6 @@ npm install
 npm run dev       # http://localhost:5173
 ```
 
-Configure `VITE_API_URL` in `.env` to point at the backend API (see `.env.example`).
+Configure `VITE_API_URL` in `.env.local` to point at the backend API for local dev. Production doesn't
+read `.env.production` at all — it's just a documented template; the live value is set as a
+`VITE_API_URL` environment variable in the Vercel project dashboard.

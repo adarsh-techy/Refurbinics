@@ -25,6 +25,7 @@ const StaffDetailPage = lazy(() => import('../features/staff/StaffDetailPage'));
 const PartsPage = lazy(() => import('../features/parts/PartsPage'));
 const PartDetailPage = lazy(() => import('../features/parts/PartDetailPage'));
 const ClientsPage = lazy(() => import('../features/clients/ClientsPage'));
+const IssueReasonsPage = lazy(() => import('../features/issue-reasons/IssueReasonsPage'));
 const ClientDetailPage = lazy(() => import('../features/clients/ClientDetailPage'));
 const ClientBatteriesPage = lazy(() => import('../features/clients/ClientBatteriesPage'));
 const ClientTransactionsPage = lazy(() => import('../features/clients/ClientTransactionsPage'));
@@ -74,6 +75,9 @@ function AppRoutes() {
           <Route element={<ProtectedRoute permission="clients" />}>
             <Route path="/clients" element={<ClientsPage />} />
             <Route path="/clients/:id" element={<ClientDetailPage />} />
+          </Route>
+          <Route element={<ProtectedRoute permission="issue_reasons" />}>
+            <Route path="/issue-reasons" element={<IssueReasonsPage />} />
           </Route>
 
           <Route element={<ProtectedRoute roles={['client']} />}>

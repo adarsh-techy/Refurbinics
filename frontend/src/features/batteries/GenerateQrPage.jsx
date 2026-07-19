@@ -13,6 +13,7 @@ import ConfirmModal from '../../components/ui/ConfirmModal';
 import AlertModal from '../../components/ui/AlertModal';
 import RowActions from '../../components/ui/RowActions';
 import useFetchList from '../../utils/use-fetch-list';
+import { downloadQrSheet, previewQrSheet, SHEET_SIZE } from '../../utils/generate-qr-sheet';
 
 const inputClasses =
   'w-full rounded-md border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-blue-800/40 dark:bg-blue-900/10 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30';
@@ -21,7 +22,7 @@ const formInputClasses =
 const labelClasses = 'mb-1.5 block text-sm font-medium text-slate-700 dark:text-neutral-200';
 
 const DEBOUNCE_MS = 250;
-const LIST_PAGE_SIZE = 10;
+const LIST_PAGE_SIZE = 15;
 
 // Registers a battery for a client and generates its QR code in one step.
 // Battery Number is the manufacturer's own serial (kept for reference only);
@@ -41,7 +42,6 @@ function GenerateQrPage() {
   const { data: clients } = useFetchList('/clients');
   const [suggestedNumber, setSuggestedNumber] = useState(1);
   const numberDebounceRef = useRef(null);
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
   const [listSearchInput, setListSearchInput] = useState('');
   const [listSearch, setListSearch] = useState('');
@@ -51,6 +51,11 @@ function GenerateQrPage() {
   const [showBlocked, setShowBlocked] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [rowError, setRowError] = useState(null);
+
+  const [sheetStart, setSheetStart] = useState('1');
+  const [sheetCount, setSheetCount] = useState(String(SHEET_SIZE));
+  const [sheetLoading, setSheetLoading] = useState(false);
+  const [sheetError, setSheetError] = useState(null);
 
   const {
     items: generatedBatteries,
@@ -94,18 +99,6 @@ function GenerateQrPage() {
   // (and the QR encodes) once a client is set.
   const clientPrefix = clientName.trim().replace(/[^a-zA-Z]/g, '').slice(0, 3).toUpperCase();
   const computedBatteryId = clientPrefix ? `${clientPrefix}-${String(suggestedNumber).padStart(4, '0')}` : '';
-
-  // Native <datalist> dropdowns can't be styled (no background color, no
-  // theming at all in any browser), so Client uses a custom-rendered list
-  // instead — lets it match the app's dark theme.
-  const clientSuggestions = (clients || []).filter((c) =>
-    c.name.toLowerCase().includes(clientName.trim().toLowerCase())
-  );
-
-  function selectClient(name) {
-    setClientName(name);
-    setShowClientSuggestions(false);
-  }
 
   // Search by battery ID or client name, debounced same as the typeahead
   // above so it doesn't fire a request on every keystroke.
@@ -179,6 +172,59 @@ function GenerateQrPage() {
 
   async function handleViewRow(row) {
     setViewingQr(await buildRowQr(row));
+  }
+
+  // The list endpoint caps a single request at 100 rows, so a count above
+  // that (multiple sheets in one download) needs several page-sized fetches
+  // stitched together rather than one call.
+  async function fetchBatteriesRange(startPosition, count) {
+    const batteries = [];
+    let offset = startPosition - 1;
+    while (batteries.length < count) {
+      const { data } = await apiClient.get('/batteries', {
+        params: { qrGenerated: true, limit: Math.min(100, count - batteries.length), offset },
+      });
+      const page = data.data || [];
+      batteries.push(...page);
+      offset += page.length;
+      if (!data.hasMore || page.length === 0) break;
+    }
+    return batteries;
+  }
+
+  // Pulls however many already-generated batteries the admin asked for
+  // (oldest-first, same order as the list below), starting from the
+  // position they typed, and lays them out 5-across x 9-down as a
+  // print-ready PDF — spilling onto extra A4 pages past 45. `action` is
+  // either the preview (opens in a new tab, native PDF viewer) or the save
+  // (downloads straight to disk) — same batch, same layout either way.
+  async function runSheetAction(action) {
+    const startPosition = Math.max(Number(sheetStart) || 1, 1);
+    const count = Math.max(Number(sheetCount) || SHEET_SIZE, 1);
+    setSheetError(null);
+    setSheetLoading(true);
+    try {
+      const batteries = await fetchBatteriesRange(startPosition, count);
+      if (batteries.length === 0) {
+        setSheetError(`No generated QR codes found starting from position ${startPosition}.`);
+        return;
+      }
+      await action(batteries);
+    } catch (err) {
+      setSheetError(err.response?.data?.message || err.message);
+    } finally {
+      setSheetLoading(false);
+    }
+  }
+
+  function handlePreviewSheet(e) {
+    e.preventDefault();
+    runSheetAction(previewQrSheet);
+  }
+
+  function handleDownloadSheet(e) {
+    e.preventDefault();
+    runSheetAction(downloadQrSheet);
   }
 
   async function handleToggleBlock(row) {
@@ -307,36 +353,21 @@ function GenerateQrPage() {
             </p>
           </div>
 
-          <div className="relative">
+          <div>
             <label className={labelClasses}>Client</label>
-            <input
-              type="text"
+            <select
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
-              onFocus={() => setShowClientSuggestions(true)}
-              onBlur={() => setTimeout(() => setShowClientSuggestions(false), 150)}
-              placeholder="e.g. Sunrise Logistics"
-              autoComplete="off"
-              className={formInputClasses}
+              className="w-full rounded-md border border-blue-200 bg-black px-3.5 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800/40 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
               required
-            />
-
-            {showClientSuggestions && clientSuggestions.length > 0 && (
-              <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-800/40 bg-black py-1 shadow-lg">
-                {clientSuggestions.map((c) => (
-                  <li key={c.id}>
-                    <button
-                      type="button"
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => selectClient(c.name)}
-                      className="block w-full px-3 py-2 text-left text-sm text-pink-700 hover:bg-blue-900/30"
-                    >
-                      {c.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
+            >
+              <option value="">Select a client</option>
+              {(clients || []).map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
 
             <p className="mt-1.5 text-xs text-slate-500 dark:text-neutral-400">
               Select the client/company that owns the battery.
@@ -447,6 +478,54 @@ function GenerateQrPage() {
             )}
           </div>
         </div>
+
+        <form
+          onSubmit={handleDownloadSheet}
+          className="mb-4 flex flex-wrap items-end gap-3 rounded-xl border border-blue-200 p-4 dark:border-blue-800/40"
+        >
+          <div>
+            <label className={labelClasses}>Print QR Sheet — start from #</label>
+            <input
+              type="number"
+              min="1"
+              value={sheetStart}
+              onChange={(e) => setSheetStart(e.target.value)}
+              className={`${inputClasses} max-w-[8rem]`}
+            />
+          </div>
+          <div>
+            <label className={labelClasses}>How many</label>
+            <input
+              type="number"
+              min="1"
+              value={sheetCount}
+              onChange={(e) => setSheetCount(e.target.value)}
+              className={`${inputClasses} max-w-[8rem]`}
+            />
+          </div>
+          <p className="mb-2.5 text-xs text-slate-500 dark:text-neutral-400">
+            One A4 sheet = {SHEET_SIZE} QR codes (5 across x 9 down), oldest-generated first, each labeled with
+            its Battery Number. Asking for more than {SHEET_SIZE} spills onto extra sheets in the same PDF.
+          </p>
+          <div className="ml-auto flex shrink-0 gap-2">
+            <button
+              type="button"
+              onClick={handlePreviewSheet}
+              disabled={sheetLoading}
+              className="rounded-md border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800 dark:text-neutral-200 dark:hover:bg-surface-700"
+            >
+              {sheetLoading ? 'Building sheet…' : 'View Sheet'}
+            </button>
+            <button
+              type="submit"
+              disabled={sheetLoading}
+              className="rounded-md bg-brand-600 px-4 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+            >
+              {sheetLoading ? 'Building sheet…' : 'Download Sheet (PDF)'}
+            </button>
+          </div>
+          {sheetError && <p className="w-full text-sm text-critical-600 dark:text-red-400">{sheetError}</p>}
+        </form>
 
         {rowError && (
           <AlertModal title="Action Failed" message={rowError} onClose={() => setRowError(null)} />

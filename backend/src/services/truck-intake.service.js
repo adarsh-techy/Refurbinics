@@ -28,7 +28,14 @@ async function createIntakeWithBatteries({
       err.status = 400;
       throw err;
     }
-    if (['in_repair', 'in_progress', 'in_testing'].includes(battery.status)) {
+    if (battery.status === 'unserviceable') {
+      const err = new Error(
+        `Battery ${battery.battery_code} was declared unserviceable — it can't come in again.`
+      );
+      err.status = 400;
+      throw err;
+    }
+    if (['in_repair', 'in_progress', 'in_testing', 'repaired'].includes(battery.status)) {
       const err = new Error(
         `Battery ${battery.battery_code} hasn't been returned to the client yet — it can't come in again.`
       );

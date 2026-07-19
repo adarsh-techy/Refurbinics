@@ -14,10 +14,17 @@ const inputClasses =
 // in_testing — then confirm it tested working to mark it repaired.
 function TechnicianRepairPanel({ battery, onUpdated }) {
   const { data: parts } = useFetchList('/parts');
+  // Admin-configured "can't service" reasons for the Report Issue picker
+  // below — activeOnly so a disabled reason never shows up here.
+  const { data: issueReasons } = useFetchList('/issue-reasons?activeOnly=true');
   const [partIds, setPartIds] = useState(['']);
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
+
+  const [showIssueForm, setShowIssueForm] = useState(false);
+  const [selectedReasonId, setSelectedReasonId] = useState('');
+  const [issueNote, setIssueNote] = useState('');
 
   function updatePartRow(index, value) {
     setPartIds((prev) => prev.map((id, i) => (i === index ? value : id)));
@@ -84,6 +91,28 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
     }
   }
 
+  async function handleReportIssue() {
+    if (!selectedReasonId) {
+      setError('Select a reason');
+      return;
+    }
+    setSubmitting(true);
+    setError(null);
+    try {
+      await apiClient.patch(`/batteries/${battery.id}/report-issue`, {
+        reasonId: Number(selectedReasonId),
+        note: issueNote || undefined,
+      });
+      setShowIssueForm(false);
+      setSelectedReasonId('');
+      setIssueNote('');
+      onUpdated();
+    } catch (err) {
+      setError(err.response?.data?.message || err.message);
+      setSubmitting(false);
+    }
+  }
+
   if (battery.status === 'in_repair') {
     return (
       <div className="mb-6 rounded-xl border border-surface-700 bg-surface-900 p-5 shadow-sm">
@@ -135,88 +164,158 @@ function TechnicianRepairPanel({ battery, onUpdated }) {
       onSubmit={handleComplete}
       className="mb-6 rounded-xl border border-surface-700 bg-surface-900 p-5 shadow-sm"
     >
-      <div className="mb-3 flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-neutral-100">Parts Changed</h2>
-        <span className="rounded-full bg-surface-700 px-2.5 py-0.5 text-xs font-medium text-neutral-300">
-          {selectedParts.length} part{selectedParts.length === 1 ? '' : 's'} selected
-        </span>
-      </div>
-
-      <div className="flex flex-col gap-3">
-        {partIds.map((partId, index) => (
-          <div
-            key={index}
-            className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-800/60 p-3"
-          >
-            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-300">
-              {index + 1}
+      {!showIssueForm && (
+        <>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-neutral-100">Parts Changed</h2>
+            <span className="rounded-full bg-surface-700 px-2.5 py-0.5 text-xs font-medium text-neutral-300">
+              {selectedParts.length} part{selectedParts.length === 1 ? '' : 's'} selected
             </span>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            {partIds.map((partId, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 rounded-lg border border-surface-700 bg-surface-800/60 p-3"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-semibold text-emerald-300">
+                  {index + 1}
+                </span>
+                <select
+                  value={partId}
+                  onChange={(e) => updatePartRow(index, e.target.value)}
+                  className={`${inputClasses} flex-1`}
+                  required
+                >
+                  <option value="" disabled>
+                    Select part
+                  </option>
+                  {parts.map((p) => (
+                    <option key={p.id} value={p.id} disabled={p.quantity <= 0}>
+                      {p.name} ({p.quantity} in stock)
+                    </option>
+                  ))}
+                </select>
+                <button
+                  type="button"
+                  onClick={() => removePartRow(index)}
+                  disabled={partIds.length === 1}
+                  aria-label="Remove part"
+                  className="shrink-0 rounded-md p-2 text-neutral-500 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.36-9.36a.75.75 0 0 0-1.06-1.06L10 9.94 7.7 7.64a.75.75 0 0 0-1.06 1.06L8.94 11l-2.3 2.3a.75.75 0 1 0 1.06 1.06L10 12.06l2.3 2.3a.75.75 0 0 0 1.06-1.06L11.06 11l2.3-2.3Z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+
+          {partIds[partIds.length - 1] && (
+            <button
+              type="button"
+              onClick={addPartRow}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-surface-600 py-3 text-sm font-medium text-neutral-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-300"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
+                <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
+              </svg>
+              Add Another Part
+            </button>
+          )}
+
+          <div className="mt-4">
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className={inputClasses}
+            />
+          </div>
+
+          {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="mt-4 w-full rounded-lg bg-emerald-600 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50"
+          >
+            {submitting ? 'Submitting…' : 'Submit for Testing'}
+          </button>
+        </>
+      )}
+
+      <div className={showIssueForm ? 'pt-0' : 'mt-5 border-t border-surface-700 pt-4'}>
+        {!showIssueForm ? (
+          <button
+            type="button"
+            onClick={() => setShowIssueForm(true)}
+            className="w-full rounded-lg border border-red-500/50 py-3 text-sm font-medium text-red-400 hover:bg-red-500/10"
+          >
+            Can't service this battery?
+          </button>
+        ) : (
+          <div>
+            <h3 className="mb-1 text-sm font-semibold text-neutral-100">Report an Issue</h3>
+            <p className="mb-3 text-sm text-neutral-400">
+              Pick a reason — this marks the battery as unserviceable.
+            </p>
+
             <select
-              value={partId}
-              onChange={(e) => updatePartRow(index, e.target.value)}
-              className={`${inputClasses} flex-1`}
-              required
+              value={selectedReasonId}
+              onChange={(e) => setSelectedReasonId(e.target.value)}
+              className={inputClasses}
             >
               <option value="" disabled>
-                Select part
+                Select reason
               </option>
-              {parts.map((p) => (
-                <option key={p.id} value={p.id} disabled={p.quantity <= 0}>
-                  {p.name} ({p.quantity} in stock)
+              {issueReasons.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.label}
                 </option>
               ))}
             </select>
-            <button
-              type="button"
-              onClick={() => removePartRow(index)}
-              disabled={partIds.length === 1}
-              aria-label="Remove part"
-              className="shrink-0 rounded-md p-2 text-neutral-500 hover:bg-red-500/10 hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-                <path
-                  fillRule="evenodd"
-                  d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm3.36-9.36a.75.75 0 0 0-1.06-1.06L10 9.94 7.7 7.64a.75.75 0 0 0-1.06 1.06L8.94 11l-2.3 2.3a.75.75 0 1 0 1.06 1.06L10 12.06l2.3 2.3a.75.75 0 0 0 1.06-1.06L11.06 11l2.3-2.3Z"
-                  clipRule="evenodd"
-                />
-              </svg>
-            </button>
+
+            <textarea
+              value={issueNote}
+              onChange={(e) => setIssueNote(e.target.value)}
+              placeholder="Note (optional)"
+              rows={2}
+              className={`${inputClasses} mt-3`}
+            />
+
+            {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+
+            <div className="mt-4 flex gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowIssueForm(false);
+                  setSelectedReasonId('');
+                  setIssueNote('');
+                }}
+                className="flex-1 rounded-lg bg-surface-800 py-3 text-sm font-medium text-neutral-200 hover:bg-surface-700"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleReportIssue}
+                disabled={submitting}
+                className="flex-1 rounded-lg bg-red-600 py-3 text-sm font-semibold text-white hover:bg-red-500 disabled:opacity-50"
+              >
+                {submitting ? 'Reporting…' : 'Report Issue'}
+              </button>
+            </div>
           </div>
-        ))}
+        )}
       </div>
-
-      {partIds[partIds.length - 1] && (
-        <button
-          type="button"
-          onClick={addPartRow}
-          className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border-2 border-dashed border-surface-600 py-3 text-sm font-medium text-neutral-400 hover:border-emerald-500/50 hover:bg-emerald-500/5 hover:text-emerald-300"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-4 w-4">
-            <path d="M10.75 4.75a.75.75 0 0 0-1.5 0v4.5h-4.5a.75.75 0 0 0 0 1.5h4.5v4.5a.75.75 0 0 0 1.5 0v-4.5h4.5a.75.75 0 0 0 0-1.5h-4.5v-4.5Z" />
-          </svg>
-          Add Another Part
-        </button>
-      )}
-
-      <div className="mt-4">
-        <input
-          type="text"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          placeholder="Notes (optional)"
-          className={inputClasses}
-        />
-      </div>
-
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
-
-      <button
-        type="submit"
-        disabled={submitting}
-        className="mt-4 w-full rounded-lg bg-emerald-600 py-3.5 text-base font-semibold text-white shadow-sm hover:bg-emerald-500 disabled:opacity-50"
-      >
-        {submitting ? 'Submitting…' : 'Submit for Testing'}
-      </button>
     </form>
   );
 }

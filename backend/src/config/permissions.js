@@ -10,6 +10,7 @@ const PERMISSIONS = [
   'returns',
   'audit_logs',
   'clients',
+  'issue_reasons',
 ];
 
 module.exports = { PERMISSIONS };

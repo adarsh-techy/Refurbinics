@@ -13,18 +13,19 @@ const navTheme = {
   ...DarkTheme,
   colors: {
     ...DarkTheme.colors,
-    background: '#040509',
+    background: '#f8fafc',
     card: '#040509',
     border: 'rgba(30, 64, 175, 0.4)',
-    primary: '#60a5fa',
+    primary: '#2563eb',
+    text: '#0f172a',
   },
 };
 
 function LoadingScreen() {
   return (
-    <View className="flex-1 items-center justify-center bg-surface-950">
-      <ActivityIndicator color="#60a5fa" />
-      <Text className="mt-3 text-sm text-neutral-400">Checking session…</Text>
+    <View className="flex-1 items-center justify-center bg-slate-50">
+      <ActivityIndicator color="#2563eb" />
+      <Text className="mt-3 text-sm text-slate-500">Checking session…</Text>
     </View>
   );
 }

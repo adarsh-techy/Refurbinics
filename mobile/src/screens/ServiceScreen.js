@@ -47,7 +47,11 @@ export default function ServiceScreen() {
     setCameraOpen(false);
     setSuggestions([]);
     setManualCode('');
-    navigation.navigate('BatteryDetail', { code });
+    // fromScan tells BatteryDetailScreen to only allow entry for a fresh
+    // intake battery ('in_repair') and show a blocking popup for anything
+    // else — unlike History, which legitimately opens already-worked
+    // batteries and must skip this check entirely.
+    navigation.navigate('BatteryDetail', { code, fromScan: true });
   }
 
   async function handleOpenCamera() {
@@ -66,10 +70,10 @@ export default function ServiceScreen() {
   }
 
   return (
-    <View className="flex-1 bg-surface-950 px-5">
+    <View className="flex-1 bg-slate-50 px-5">
       {cameraOpen ? (
         <View className="flex-1 gap-3 pt-8">
-          <View className="flex-1 overflow-hidden rounded-2xl border border-blue-800/40">
+          <View className="flex-1 overflow-hidden rounded-2xl border border-blue-200">
             <CameraView
               style={{ flex: 1 }}
               facing="back"
@@ -79,9 +83,9 @@ export default function ServiceScreen() {
           </View>
           <TouchableOpacity
             onPress={() => setCameraOpen(false)}
-            className="items-center rounded-md bg-surface-800 py-3"
+            className="items-center rounded-md bg-slate-200 py-3"
           >
-            <Text className="text-sm font-medium text-neutral-200">Stop Scanning</Text>
+            <Text className="text-sm font-medium text-slate-700">Stop Scanning</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -89,8 +93,8 @@ export default function ServiceScreen() {
           <View className="mb-5 h-20 w-20 items-center justify-center rounded-full bg-emerald-500/10">
             <Text className="text-3xl">📷</Text>
           </View>
-          <Text className="text-lg font-semibold text-neutral-100">Scan a Battery to Begin</Text>
-          <Text className="mt-2 max-w-xs text-center text-sm text-neutral-400">
+          <Text className="text-lg font-semibold text-slate-900">Scan a Battery to Begin</Text>
+          <Text className="mt-2 max-w-xs text-center text-sm text-slate-500">
             Scan the QR code on a battery to start work, log the parts you changed, and mark it
             complete.
           </Text>
@@ -104,9 +108,9 @@ export default function ServiceScreen() {
             </TouchableOpacity>
 
             <View className="flex-row items-center gap-2">
-              <View className="h-px flex-1 bg-white/10" />
-              <Text className="text-xs text-neutral-500">or search by code</Text>
-              <View className="h-px flex-1 bg-white/10" />
+              <View className="h-px flex-1 bg-slate-200" />
+              <Text className="text-xs text-slate-400">or search by code</Text>
+              <View className="h-px flex-1 bg-slate-200" />
             </View>
 
             <TextInput
@@ -117,20 +121,20 @@ export default function ServiceScreen() {
               placeholderTextColor="#6b7280"
               autoCapitalize="characters"
               autoCorrect={false}
-              className="rounded-md border border-blue-800/40 bg-blue-900/10 px-3.5 py-3 text-center text-base text-neutral-100"
+              className="rounded-md border border-blue-200 bg-blue-50 px-3.5 py-3 text-center text-base text-slate-900"
             />
 
             {suggestions.length > 0 && (
-              <View className="max-h-64 overflow-hidden rounded-md border border-blue-800/40 bg-surface-900">
+              <View className="max-h-64 overflow-hidden rounded-md border border-blue-200 bg-white">
                 <FlatList
                   data={suggestions}
                   keyExtractor={(item) => String(item.id)}
                   renderItem={({ item }) => (
                     <TouchableOpacity
                       onPress={() => goToBattery(item.battery_code)}
-                      className="flex-row items-center justify-between border-b border-surface-800 px-3 py-3 last:border-b-0"
+                      className="flex-row items-center justify-between border-b border-slate-100 px-3 py-3 last:border-b-0"
                     >
-                      <Text className="font-medium text-neutral-100">{item.battery_code}</Text>
+                      <Text className="font-medium text-slate-900">{item.battery_code}</Text>
                       <StatusBadge status={item.status} />
                     </TouchableOpacity>
                   )}

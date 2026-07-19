@@ -93,8 +93,11 @@ async function myProfile(req, res, next) {
     if (!staff) {
       return res.status(409).json({ message: 'Your account is not linked to a staff record.' });
     }
-    const repairs = await staffModel.findRepairs(staff.id);
-    res.json({ staff, repairs });
+    const [repairs, issues] = await Promise.all([
+      staffModel.findRepairs(staff.id),
+      staffModel.findIssues(staff.id),
+    ]);
+    res.json({ staff, repairs, issues });
   } catch (err) {
     next(err);
   }

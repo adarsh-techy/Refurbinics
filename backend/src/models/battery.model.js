@@ -62,7 +62,7 @@ async function findPage({
   // Service screen's scan/search suggestions, so an already-completed or
   // returned battery never shows up as something to start work on.
   if (activeOnly) {
-    conditions.push(`b.status NOT IN ('repaired', 'returned')`);
+    conditions.push(`b.status NOT IN ('repaired', 'returned', 'unserviceable')`);
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
@@ -99,7 +99,7 @@ async function findPage({
          AND date_trunc('month', r3.repaired_at) = date_trunc('month', now())
      ) month_stats ON true
      ${whereClause}
-     ORDER BY ${qrGenerated ? 'b.qr_generated_at DESC' : 'b.created_at DESC'}, b.id DESC
+     ORDER BY ${qrGenerated ? 'b.qr_generated_at ASC, b.id ASC' : 'b.created_at DESC, b.id DESC'}
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
     params
   );
@@ -108,16 +108,19 @@ async function findPage({
   return { rows: rows.slice(0, limit), hasMore };
 }
 
-// Joins in the originating truck intake (truck number, driver, date) so the
+// Joins in the originating truck intake (truck number, driver, date), plus
+// whichever technician's currently claimed it (see startWork), so the
 // detail page can show the battery's full lifecycle, not just its status.
 async function findByCode(batteryCode) {
   const { rows } = await db.query(
     `SELECT b.*,
             ti.truck_number AS intake_truck_number,
             ti.driver_name AS intake_driver_name,
-            ti.intake_at AS intake_at
+            ti.intake_at AS intake_at,
+            u.name AS started_by_name
      FROM batteries b
      LEFT JOIN truck_intakes ti ON ti.id = b.truck_intake_id
+     LEFT JOIN users u ON u.id = b.started_by_user_id
      WHERE b.battery_code = $1`,
     [batteryCode]
   );
@@ -245,7 +248,7 @@ async function addVisit(batteryId, truckIntakeId) {
     [batteryId, truckIntakeId]
   );
   const { rows } = await db.query(
-    `UPDATE batteries SET status = 'in_repair' WHERE id = $1 RETURNING *`,
+    `UPDATE batteries SET status = 'in_repair', started_by_user_id = NULL WHERE id = $1 RETURNING *`,
     [batteryId]
   );
   return rows[0];
@@ -262,7 +265,7 @@ async function addVisitMany(batteryIds, truckIntakeId) {
     [batteryIds, truckIntakeId]
   );
   const { rows } = await db.query(
-    `UPDATE batteries SET status = 'in_repair' WHERE id = ANY($1::int[]) RETURNING *`,
+    `UPDATE batteries SET status = 'in_repair', started_by_user_id = NULL WHERE id = ANY($1::int[]) RETURNING *`,
     [batteryIds]
   );
   return rows;
@@ -278,6 +281,22 @@ async function findVisitHistory(batteryId) {
      JOIN truck_intakes ti ON ti.id = bv.truck_intake_id
      WHERE bv.battery_id = $1
      ORDER BY ti.intake_at ASC`,
+    [batteryId]
+  );
+  return rows;
+}
+
+// Every issue a technician has reported against this battery (e.g. "Battery
+// is dead"), newest first — for the detail page to show why it was marked
+// unserviceable.
+async function findIssueHistory(batteryId) {
+  const { rows } = await db.query(
+    `SELECT bi.id, bi.note, bi.reported_at, ir.label AS reason_label, s.name AS staff_name
+     FROM battery_issues bi
+     JOIN issue_reasons ir ON ir.id = bi.reason_id
+     JOIN staff s ON s.id = bi.staff_id
+     WHERE bi.battery_id = $1
+     ORDER BY bi.reported_at DESC`,
     [batteryId]
   );
   return rows;
@@ -338,14 +357,16 @@ async function setBlocked(id, blocked) {
 
 // A technician claiming a battery to start work — only succeeds from
 // 'in_repair' (not yet touched), so it can't be "started" twice or on a
-// battery that's already repaired/returned. Returns undefined if the
-// battery doesn't exist or isn't in a startable state.
-async function startWork(id) {
+// battery that's already repaired/returned. Stamps started_by_user_id so a
+// later re-scan can tell this same technician apart from anyone else while
+// it's in_progress. Returns undefined if the battery doesn't exist or isn't
+// in a startable state.
+async function startWork(id, userId) {
   const { rows } = await db.query(
-    `UPDATE batteries SET status = 'in_progress', work_started_at = now()
+    `UPDATE batteries SET status = 'in_progress', work_started_at = now(), started_by_user_id = $2
      WHERE id = $1 AND status = 'in_repair'
      RETURNING *`,
-    [id]
+    [id, userId]
   );
   return rows[0];
 }
@@ -366,6 +387,41 @@ async function completeTesting(id) {
     [id]
   );
   return rows[0];
+}
+
+// A technician reporting that a battery can't be serviced (e.g. it's dead)
+// while work is in progress — only succeeds from 'in_progress', the same
+// status-gated pattern as startWork/completeTesting. Logs the reason + note
+// to battery_issues and moves the battery to the terminal 'unserviceable'
+// status in one transaction. Returns undefined if the battery doesn't exist
+// or isn't in a reportable state.
+async function reportIssue(id, { staffId, reasonId, note }) {
+  const client = await db.pool.connect();
+  try {
+    await client.query('BEGIN');
+    const { rows } = await client.query(
+      `UPDATE batteries SET status = 'unserviceable'
+       WHERE id = $1 AND status = 'in_progress'
+       RETURNING *`,
+      [id]
+    );
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return undefined;
+    }
+    await client.query(
+      `INSERT INTO battery_issues (battery_id, staff_id, reason_id, note)
+       VALUES ($1, $2, $3, $4)`,
+      [id, staffId, reasonId, note || null]
+    );
+    await client.query('COMMIT');
+    return rows[0];
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
 }
 
 // Sets which client a battery belongs to and marks its QR code as
@@ -436,9 +492,11 @@ module.exports = {
   addVisitMany,
   findVisitHistory,
   findRepairHistory,
+  findIssueHistory,
   findReturnHistory,
   startWork,
   completeTesting,
+  reportIssue,
   updateStatus,
   updateClientName,
   countByClientName,

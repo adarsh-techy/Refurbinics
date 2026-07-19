@@ -1,12 +1,12 @@
 import { Text, View } from 'react-native';
 
 const TONES = {
-  info: { bg: 'bg-sky-500/15', text: 'text-sky-300' },
-  warning: { bg: 'bg-amber-500/15', text: 'text-amber-300' },
-  good: { bg: 'bg-emerald-500/15', text: 'text-emerald-300' },
-  critical: { bg: 'bg-red-500/15', text: 'text-red-300' },
-  testing: { bg: 'bg-blue-500/15', text: 'text-blue-300' },
-  neutral: { bg: 'bg-surface-700', text: 'text-neutral-300' },
+  info: { bg: 'bg-sky-500/15', text: 'text-sky-700' },
+  warning: { bg: 'bg-amber-500/15', text: 'text-amber-700' },
+  good: { bg: 'bg-emerald-500/15', text: 'text-emerald-700' },
+  critical: { bg: 'bg-red-500/15', text: 'text-red-700' },
+  testing: { bg: 'bg-blue-500/15', text: 'text-blue-700' },
+  neutral: { bg: 'bg-slate-200', text: 'text-slate-700' },
 };
 
 // battery/status strings from the API (snake_case) mapped to a tone +
@@ -17,6 +17,7 @@ const STATUS_MAP = {
   in_testing: { tone: 'testing', label: 'In Testing' },
   repaired: { tone: 'good', label: 'Completed' },
   returned: { tone: 'info', label: 'Returned' },
+  unserviceable: { tone: 'critical', label: 'Unserviceable' },
 };
 
 export function Badge({ tone = 'neutral', children }) {

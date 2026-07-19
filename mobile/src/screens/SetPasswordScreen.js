@@ -32,36 +32,36 @@ export default function SetPasswordScreen() {
   }
 
   return (
-    <View className="flex-1 justify-center bg-surface-950 px-6">
+    <View className="flex-1 justify-center bg-slate-50 px-6">
       <View className="mb-6 items-center">
-        <Text className="text-lg font-semibold text-neutral-100">Set Your Password</Text>
-        <Text className="mt-1 text-center text-sm text-neutral-400">
+        <Text className="text-lg font-semibold text-slate-900">Set Your Password</Text>
+        <Text className="mt-1 text-center text-sm text-slate-500">
           Welcome{user?.name ? `, ${user.name}` : ''} — choose a permanent password to replace
           your temporary one.
         </Text>
       </View>
 
-      <View className="gap-4 rounded-2xl border border-blue-800/40 bg-blue-900/10 p-5">
+      <View className="gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-5">
         <View>
-          <Text className="mb-1.5 text-sm font-medium text-neutral-200">New Password</Text>
+          <Text className="mb-1.5 text-sm font-medium text-slate-700">New Password</Text>
           <TextInput
             value={newPassword}
             onChangeText={setNewPassword}
             secureTextEntry
-            className="rounded-md border border-blue-800/40 bg-surface-900 px-3.5 py-3 text-base text-neutral-100"
+            className="rounded-md border border-blue-200 bg-white px-3.5 py-3 text-base text-slate-900"
           />
         </View>
         <View>
-          <Text className="mb-1.5 text-sm font-medium text-neutral-200">Confirm Password</Text>
+          <Text className="mb-1.5 text-sm font-medium text-slate-700">Confirm Password</Text>
           <TextInput
             value={confirmPassword}
             onChangeText={setConfirmPassword}
             secureTextEntry
-            className="rounded-md border border-blue-800/40 bg-surface-900 px-3.5 py-3 text-base text-neutral-100"
+            className="rounded-md border border-blue-200 bg-white px-3.5 py-3 text-base text-slate-900"
           />
         </View>
 
-        {error && <Text className="text-sm text-red-400">{error}</Text>}
+        {error && <Text className="text-sm text-red-600">{error}</Text>}
 
         <TouchableOpacity
           onPress={handleSubmit}
@@ -72,7 +72,7 @@ export default function SetPasswordScreen() {
         </TouchableOpacity>
 
         <TouchableOpacity onPress={() => dispatch(logout())} className="items-center py-2">
-          <Text className="text-sm font-medium text-neutral-400">Log out</Text>
+          <Text className="text-sm font-medium text-slate-500">Log out</Text>
         </TouchableOpacity>
       </View>
     </View>

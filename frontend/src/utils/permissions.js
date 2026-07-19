@@ -8,6 +8,7 @@ export const PERMISSIONS = [
   { key: 'returns', label: 'Returns' },
   { key: 'audit_logs', label: 'Audit Log' },
   { key: 'clients', label: 'Clients' },
+  { key: 'issue_reasons', label: 'Issue Reasons' },
 ];
 
 // super_admin implicitly has every permission; an admin only has what's in

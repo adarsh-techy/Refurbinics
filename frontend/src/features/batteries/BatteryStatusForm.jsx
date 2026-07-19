@@ -7,6 +7,7 @@ const STATUS_OPTIONS = [
   { value: 'in_testing', label: 'In Testing' },
   { value: 'repaired', label: 'Completed' },
   { value: 'returned', label: 'Returned' },
+  { value: 'unserviceable', label: 'Unserviceable' },
 ];
 
 // Manual status correction for a battery — code and originating intake stay

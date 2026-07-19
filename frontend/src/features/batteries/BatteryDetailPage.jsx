@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import QRCode from 'qrcode';
 import apiClient from '../../services/api-client';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
@@ -11,7 +12,6 @@ import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
 import BatteryStatusForm from './BatteryStatusForm';
 import TechnicianRepairPanel from './TechnicianRepairPanel';
-import generateBatteryInvoice from '../../utils/generate-battery-invoice';
 
 const STATUS_ACCENT = {
   in_repair: 'border-warning-500',
@@ -223,6 +223,8 @@ function BatteryDetailPage() {
   const [error, setError] = useState(null);
   const [showEdit, setShowEdit] = useState(false);
   const [deleteError, setDeleteError] = useState(null);
+  const [qrDataUrl, setQrDataUrl] = useState(null);
+  const [showQrModal, setShowQrModal] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -240,6 +242,29 @@ function BatteryDetailPage() {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Deterministic from the battery code (same as Generate QR Code's
+  // regenerate-on-view) — nothing needs to be stored, so it can always be
+  // rebuilt here rather than only being visible from the Generate QR page.
+  useEffect(() => {
+    let cancelled = false;
+    QRCode.toDataURL(`${window.location.origin}/batteries/${encodeURIComponent(code)}`, {
+      width: 320,
+      margin: 1,
+    }).then((dataUrl) => {
+      if (!cancelled) setQrDataUrl(dataUrl);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [code]);
+
+  function handleDownloadQr() {
+    const link = document.createElement('a');
+    link.href = qrDataUrl;
+    link.download = `qr-${code}.png`;
+    link.click();
+  }
 
   function handleSaved() {
     setShowEdit(false);
@@ -308,11 +333,6 @@ function BatteryDetailPage() {
       </Link>
 
       <PageHeader title={battery.battery_code} description="Full intake-to-return history.">
-        {history.length > 0 && (
-          <Button variant="secondary" onClick={() => generateBatteryInvoice(battery, history)}>
-            Download Invoice
-          </Button>
-        )}
         {isSuperAdmin && (
           <>
             <Button variant="secondary" onClick={() => setShowEdit(true)}>
@@ -339,6 +359,38 @@ function BatteryDetailPage() {
         <AlertModal title="Cannot Delete Battery" message={deleteError} onClose={() => setDeleteError(null)} />
       )}
 
+      {showQrModal && (
+        <Modal title={battery.battery_code} onClose={() => setShowQrModal(false)}>
+          <div className="flex flex-col items-center">
+            {qrDataUrl ? (
+              <img
+                src={qrDataUrl}
+                alt={`QR code for battery ${battery.battery_code}`}
+                className="h-64 w-64 rounded-lg border border-slate-100 dark:border-surface-700"
+              />
+            ) : (
+              <div className="flex h-64 w-64 items-center justify-center text-sm text-slate-400 dark:text-neutral-500">
+                Generating…
+              </div>
+            )}
+            {battery.client_name && (
+              <p className="mt-4 text-sm text-slate-500 dark:text-neutral-400">Client: {battery.client_name}</p>
+            )}
+            {battery.serial_number && (
+              <p className="text-sm text-slate-500 dark:text-neutral-400">Battery Number: {battery.serial_number}</p>
+            )}
+            <button
+              type="button"
+              onClick={handleDownloadQr}
+              disabled={!qrDataUrl}
+              className="mt-4 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 disabled:opacity-50 dark:bg-blue-600 dark:hover:bg-blue-500"
+            >
+              Download PNG
+            </button>
+          </div>
+        </Modal>
+      )}
+
       <div
         className={`mb-6 flex flex-wrap items-center gap-4 rounded-xl border-l-4 border-y border-r border-slate-200 bg-gradient-to-r p-5 shadow-sm dark:border-y-surface-700 dark:border-r-surface-700 ${STATUS_ACCENT[battery.status] || 'border-slate-300'} ${STATUS_BANNER_BG[battery.status] || 'from-white to-slate-50 dark:from-surface-900 dark:to-black'}`}
       >
@@ -362,6 +414,14 @@ function BatteryDetailPage() {
                 Battery Number: {battery.serial_number}
               </span>
             )}
+            {battery.status === 'in_progress' && battery.started_by_name && (
+              <span className="flex items-center gap-1 rounded-full bg-critical-100 px-2.5 py-0.5 text-xs font-medium text-critical-700 dark:bg-red-500/15 dark:text-red-300">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                  <path d="M10 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM3.465 14.493a1.23 1.23 0 0 0 .41 1.412A9.957 9.957 0 0 0 10 18c2.31 0 4.438-.784 6.131-2.1.43-.333.604-.903.408-1.41a7.002 7.002 0 0 0-13.074.003Z" />
+                </svg>
+                Being worked on by {battery.started_by_name}
+              </span>
+            )}
           </div>
           <p className="mt-1 text-sm text-slate-500 dark:text-neutral-400">
             Tracked since{' '}
@@ -380,7 +440,39 @@ function BatteryDetailPage() {
             </p>
           )}
         </div>
+
+        <button
+          type="button"
+          onClick={() => setShowQrModal(true)}
+          title="View / download QR code"
+          className="shrink-0 rounded-lg border border-slate-200 bg-white p-1 shadow-sm transition-transform hover:scale-105 dark:border-surface-700 dark:bg-black"
+        >
+          {qrDataUrl ? (
+            <img
+              src={qrDataUrl}
+              alt={`QR code for battery ${battery.battery_code}`}
+              className="h-16 w-16 rounded-md"
+            />
+          ) : (
+            <div className="h-16 w-16 animate-pulse rounded-md bg-slate-100 dark:bg-surface-800" />
+          )}
+        </button>
       </div>
+
+      {battery.status === 'unserviceable' && result.issues?.[0] && (
+        <div className="mb-6 rounded-xl border border-critical-200 bg-critical-50 p-5 dark:border-red-500/30 dark:bg-red-500/10">
+          <h2 className="mb-1 text-sm font-semibold text-critical-700 dark:text-red-300">
+            {result.issues[0].reason_label}
+          </h2>
+          {result.issues[0].note && (
+            <p className="mb-1 text-sm text-slate-600 dark:text-neutral-300">{result.issues[0].note}</p>
+          )}
+          <p className="text-xs text-slate-500 dark:text-neutral-500">
+            Reported by {result.issues[0].staff_name} on{' '}
+            {new Date(result.issues[0].reported_at).toLocaleString()}
+          </p>
+        </div>
+      )}
 
       {isTechnician && <TechnicianRepairPanel battery={battery} onUpdated={load} />}
 
