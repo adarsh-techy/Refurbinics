@@ -1,5 +1,6 @@
 const batteryModel = require('../models/battery.model');
 const staffModel = require('../models/staff.model');
+const realtime = require('../realtime');
 
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 100;
@@ -100,6 +101,7 @@ async function update(req, res, next) {
     if (!battery) {
       return res.status(404).json({ message: 'Battery not found' });
     }
+    realtime.broadcastUnserviceableCount().catch((err) => console.error('broadcastUnserviceableCount:', err));
     res.json(battery);
   } catch (err) {
     next(err);
@@ -109,6 +111,7 @@ async function update(req, res, next) {
 async function remove(req, res, next) {
   try {
     await batteryModel.remove(req.params.id);
+    realtime.broadcastUnserviceableCount().catch((err) => console.error('broadcastUnserviceableCount:', err));
     res.status(204).end();
   } catch (err) {
     // FK violation: this battery has repair or return history.
@@ -220,6 +223,15 @@ async function repeatIntakesThisMonth(req, res, next) {
   }
 }
 
+// Powers the Unserviceable Batteries page's 100-battery popup alert.
+async function unserviceableCount(req, res, next) {
+  try {
+    res.json({ count: await batteryModel.countByStatus('unserviceable') });
+  } catch (err) {
+    next(err);
+  }
+}
+
 // A technician claiming a battery to start work on, before logging any part.
 async function startWork(req, res, next) {
   try {
@@ -279,6 +291,7 @@ async function reportIssue(req, res, next) {
         message: 'This battery cannot be reported — work must be in progress first.',
       });
     }
+    realtime.broadcastUnserviceableCount().catch((err) => console.error('broadcastUnserviceableCount:', err));
     res.json(battery);
   } catch (err) {
     // FK violation: the reason id doesn't exist.
@@ -313,6 +326,7 @@ module.exports = {
   generate,
   listSerialNumbers,
   repeatIntakesThisMonth,
+  unserviceableCount,
   startWork,
   completeTesting,
   reportIssue,

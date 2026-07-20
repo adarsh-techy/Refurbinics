@@ -25,6 +25,7 @@ const STATUS_FILTERS = [
   { value: 'in_testing', label: 'In Testing' },
   { value: 'repaired', label: 'Completed' },
   { value: 'returned', label: 'Returned' },
+  { value: 'unserviceable', label: 'Unserviceable' },
 ];
 
 function BatteriesPage() {
@@ -88,10 +89,6 @@ function BatteriesPage() {
         title="Global Battery"
         description="Every battery ever taken in, tracked by its unique ID."
         titleClassName="text-2xl font-bold tracking-tight text-green-600 dark:text-green-400"
-        titleStyle={{
-          textShadow:
-            '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
-        }}
       />
 
       <div className="mb-14 flex flex-wrap items-end gap-3 rounded-xl border border-blue-200 p-3 shadow-sm dark:border-blue-800/40">

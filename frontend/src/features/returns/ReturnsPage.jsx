@@ -106,10 +106,6 @@ function ReturnsPage() {
         title="Return Battery"
         description="Repaired batteries dispatched back to the customer."
         titleClassName="text-2xl font-bold tracking-tight text-green-600 dark:text-green-400"
-        titleStyle={{
-          textShadow:
-            '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
-        }}
       >
         <Button variant="darkViolet" onClick={() => setShowForm(true)}>+ Record Return</Button>
       </PageHeader>

@@ -1,10 +1,13 @@
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useSelector } from 'react-redux';
 import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import PortalHeader from './PortalHeader';
 import LowStockAlert from './LowStockAlert';
+import UnserviceableBatteriesAlert from './UnserviceableBatteriesAlert';
+import { useTheme } from '../../context/ThemeContext';
+import { connectSocket, disconnectSocket } from '../../services/socket-client';
 
 // Shown in the page content area while a route's chunk downloads (see
 // AppRoutes' lazy() imports) — the sidebar/navbar shell stays mounted around
@@ -19,6 +22,17 @@ function PageFallback() {
 
 function DashboardLayout() {
   const user = useSelector((state) => state.auth.user);
+  const token = useSelector((state) => state.auth.token);
+  const { theme } = useTheme();
+
+  // Powers the real-time push behind NotificationBell/RepeatIntakeAlert/
+  // LowStockAlert — connects for the lifetime of an authenticated session
+  // and disconnects on logout (token becomes null) or unmount.
+  useEffect(() => {
+    if (!token) return undefined;
+    connectSocket();
+    return () => disconnectSocket();
+  }, [token]);
 
   // Technicians work mostly from a phone scanning batteries, so they get the
   // mobile-first header + slide-out drawer instead of a desktop sidebar —
@@ -57,17 +71,18 @@ function DashboardLayout() {
   }
 
   return (
-    <div className="dark flex min-h-screen bg-surface-950">
+    <div className={`${theme === 'dark' ? 'dark' : ''} flex min-h-screen bg-white dark:bg-surface-950`}>
       <Sidebar />
       <div className="flex flex-1 flex-col">
         <Navbar />
-        <main className="flex-1 bg-surface-950 p-6">
+        <main className="flex-1 bg-white p-6 dark:bg-surface-950">
           <Suspense fallback={<PageFallback />}>
             <Outlet />
           </Suspense>
         </main>
       </div>
       <LowStockAlert />
+      <UnserviceableBatteriesAlert />
     </div>
   );
 }

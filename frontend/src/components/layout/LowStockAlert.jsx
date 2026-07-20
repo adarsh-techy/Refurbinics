@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/api-client';
+import { socket } from '../../services/socket-client';
 import Modal from '../ui/Modal';
 
-const CHECK_INTERVAL_MS = 10 * 60 * 1000;
 const ACK_STORAGE_KEY = 'lowStockAckSignature';
 
 function signatureOf(parts) {
@@ -12,11 +12,13 @@ function signatureOf(parts) {
     .join(',');
 }
 
-// Reminds whoever's logged in about low-stock parts (5 or fewer left) every
-// 10 minutes. Clicking "OK, Noted" silences it for that exact set of parts —
-// stored in localStorage so it survives a refresh — until stock changes: a
-// restock clears the flag, and a newly-low part changes the set, so either
-// one makes the popup reappear even if an old set was acknowledged.
+// Reminds whoever's logged in about low-stock parts (5 or fewer left).
+// Clicking "OK, Noted" silences it for that exact set of parts — stored in
+// localStorage so it survives a refresh — until stock changes: a restock
+// clears the flag, and a newly-low part changes the set, so either one makes
+// the popup reappear even if an old set was acknowledged. Kept live by the
+// server pushing a fresh list over the socket whenever stock changes (see
+// backend/src/realtime) instead of polling.
 function LowStockAlert() {
   const [lowStockParts, setLowStockParts] = useState([]);
   const [visible, setVisible] = useState(false);
@@ -24,33 +26,39 @@ function LowStockAlert() {
   useEffect(() => {
     let cancelled = false;
 
+    function applyStock(data) {
+      if (cancelled) return;
+
+      const low = data.filter((p) => !p.in_stock);
+      if (low.length === 0) {
+        localStorage.removeItem(ACK_STORAGE_KEY);
+        setLowStockParts([]);
+        setVisible(false);
+        return;
+      }
+
+      const signature = signatureOf(low);
+      const ackedSignature = localStorage.getItem(ACK_STORAGE_KEY) || '';
+      setLowStockParts(low);
+      setVisible(signature !== ackedSignature);
+    }
+
     async function checkStock() {
       try {
         const { data } = await apiClient.get('/parts');
-        if (cancelled) return;
-
-        const low = data.filter((p) => !p.in_stock);
-        if (low.length === 0) {
-          localStorage.removeItem(ACK_STORAGE_KEY);
-          setLowStockParts([]);
-          setVisible(false);
-          return;
-        }
-
-        const signature = signatureOf(low);
-        const ackedSignature = localStorage.getItem(ACK_STORAGE_KEY) || '';
-        setLowStockParts(low);
-        setVisible(signature !== ackedSignature);
+        applyStock(data);
       } catch {
-        // Skip this check; the next interval will retry.
+        // Skip this check; the next socket push or reconnect will retry.
       }
     }
 
     checkStock();
-    const timer = setInterval(checkStock, CHECK_INTERVAL_MS);
+    socket.on('connect', checkStock);
+    socket.on('parts:out-of-stock', applyStock);
     return () => {
       cancelled = true;
-      clearInterval(timer);
+      socket.off('connect', checkStock);
+      socket.off('parts:out-of-stock', applyStock);
     };
   }, []);
 

@@ -106,10 +106,6 @@ function PartsPage() {
         title="Inventory"
         description="Parts stock used for battery repairs."
         titleClassName="text-2xl font-bold tracking-tight text-green-600 dark:text-green-400"
-        titleStyle={{
-          textShadow:
-            '1px 1px 0 rgba(0,0,0,0.25), 2px 2px 0 rgba(0,0,0,0.20), 3px 3px 3px rgba(0,0,0,0.25)',
-        }}
       >
         <Button variant="darkViolet" onClick={() => setFormTarget('new')}>+ Add Part</Button>
       </PageHeader>

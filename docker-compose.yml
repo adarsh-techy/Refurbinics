@@ -1,0 +1,117 @@
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-refurbinics}
+      POSTGRES_USER: ${DB_USER:-postgres}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # No `ports:` published — only reachable from other containers on this
+    # compose network, never from the host's public interface. Use
+    # `docker compose exec db psql -U postgres` for manual access.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U ${DB_USER:-postgres}']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  backend:
+    build: ./backend
+    restart: unless-stopped
+    init: true # runs tini as PID 1, for correct signal forwarding/zombie reaping
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      # Internal Docker network — "db" resolves via Compose's built-in DNS,
+      # never the host's Postgres or a publicly reachable address.
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-refurbinics}
+      DB_USER: ${DB_USER:-postgres}
+      DB_PASSWORD: ${DB_PASSWORD:?set DB_PASSWORD in .env}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-7d}
+      # Must match wherever the frontend is actually served from (the
+      # public HTTPS domain via Caddy), or the browser's CORS preflight
+      # rejects every API call — see backend/src/config/cors-origin.js.
+      CLIENT_URL: ${CLIENT_URL:?set CLIENT_URL in .env}
+    healthcheck:
+      test: ['CMD', 'wget', '-qO-', 'http://127.0.0.1:5000/health']
+      interval: 15s
+      timeout: 5s
+      start_period: 15s
+      retries: 5
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    # No `ports:` published — only reached through the caddy reverse proxy.
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked into the JS bundle at build time (Vite), so it must be the
+        # public URL the *browser* will reach the backend at (through
+        # Caddy), not the internal "backend" service hostname.
+        VITE_API_URL: ${VITE_API_URL:?set VITE_API_URL in .env}
+    restart: unless-stopped
+    depends_on:
+      backend:
+        condition: service_healthy
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+    # No `ports:` published — only reached through the caddy reverse proxy.
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - frontend
+      - backend
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in .env}
+      API_DOMAIN: ${API_DOMAIN:?set API_DOMAIN in .env}
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    logging:
+      driver: json-file
+      options:
+        max-size: '10m'
+        max-file: '3'
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

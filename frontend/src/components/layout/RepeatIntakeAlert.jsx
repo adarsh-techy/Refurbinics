@@ -2,14 +2,15 @@ import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/api-client';
+import { socket } from '../../services/socket-client';
 import { hasPermission } from '../../utils/permissions';
-
-const POLL_MS = 60000;
 
 // Repeat-arrow icon with a badge count of batteries that have come in on
 // more than one truck intake this calendar month. Opening it lists each
 // battery with every intake time this month, so staff can spot one bouncing
-// back unusually fast; clicking jumps to that battery's own history.
+// back unusually fast; clicking jumps to that battery's own history. Kept
+// live by the server pushing a fresh list over the socket whenever a new
+// intake is recorded (see backend/src/realtime) instead of polling.
 function RepeatIntakeAlert() {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -30,8 +31,12 @@ function RepeatIntakeAlert() {
   useEffect(() => {
     if (!canViewIntakes) return undefined;
     loadRepeats();
-    const interval = setInterval(loadRepeats, POLL_MS);
-    return () => clearInterval(interval);
+    socket.on('connect', loadRepeats);
+    socket.on('intakes:repeats', setRepeats);
+    return () => {
+      socket.off('connect', loadRepeats);
+      socket.off('intakes:repeats', setRepeats);
+    };
   }, [canViewIntakes]);
 
   useEffect(() => {
@@ -62,7 +67,7 @@ function RepeatIntakeAlert() {
         type="button"
         onClick={handleToggle}
         aria-label="Repeat intakes this month"
-        className="relative rounded-md p-2.5 text-neutral-300 hover:bg-neutral-900 hover:text-white"
+        className="relative rounded-md p-2.5 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-7 w-7">
           <path
@@ -72,7 +77,7 @@ function RepeatIntakeAlert() {
           />
         </svg>
         {repeats.length > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-5 min-w-[1.25rem] animate-pulse items-center justify-center rounded-full bg-warning-600 px-1 text-xs font-semibold text-white ring-2 ring-black">
+          <span className="absolute right-0.5 top-0.5 flex h-5 min-w-[1.25rem] animate-pulse items-center justify-center rounded-full bg-warning-600 px-1 text-xs font-semibold text-white ring-2 ring-white dark:ring-black">
             {repeats.length}
           </span>
         )}

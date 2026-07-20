@@ -28,10 +28,11 @@ function UkClock() {
 
   return (
     <div className="hidden text-right leading-tight sm:block">
-      <p className="text-sm font-semibold tabular-nums text-neutral-200">
-        {TIME_FORMATTER.format(now)} <span className="text-xs font-normal text-neutral-500">UK</span>
+      <p className="text-sm font-semibold tabular-nums text-emerald-700 dark:text-neutral-200">
+        {TIME_FORMATTER.format(now)}{' '}
+        <span className="text-xs font-normal text-emerald-600/70 dark:text-neutral-500">UK</span>
       </p>
-      <p className="text-xs text-neutral-500">{DATE_FORMATTER.format(now)}</p>
+      <p className="text-xs text-emerald-600/70 dark:text-neutral-500">{DATE_FORMATTER.format(now)}</p>
     </div>
   );
 }

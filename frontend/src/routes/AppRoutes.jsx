@@ -17,6 +17,7 @@ import NotFoundPage from '../pages/NotFoundPage';
 const TruckIntakePage = lazy(() => import('../features/truck-intake/TruckIntakePage'));
 const TruckIntakeDetailPage = lazy(() => import('../features/truck-intake/TruckIntakeDetailPage'));
 const BatteriesPage = lazy(() => import('../features/batteries/BatteriesPage'));
+const UnserviceableBatteriesPage = lazy(() => import('../features/batteries/UnserviceableBatteriesPage'));
 const BatteryDetailPage = lazy(() => import('../features/batteries/BatteryDetailPage'));
 const GenerateQrPage = lazy(() => import('../features/batteries/GenerateQrPage'));
 const RepairsPage = lazy(() => import('../features/repairs/RepairsPage'));
@@ -54,6 +55,7 @@ function AppRoutes() {
 
           <Route element={<ProtectedRoute roles={['super_admin', 'admin']} />}>
             <Route path="/batteries" element={<BatteriesPage />} />
+            <Route path="/batteries/unserviceable" element={<UnserviceableBatteriesPage />} />
             <Route path="/batteries-qr-code" element={<GenerateQrPage />} />
           </Route>
 

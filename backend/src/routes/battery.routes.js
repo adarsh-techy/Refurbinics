@@ -9,6 +9,7 @@ router.get('/', batteryController.list);
 router.get('/count-by-client', batteryController.countByClient);
 router.get('/serial-numbers', batteryController.listSerialNumbers);
 router.get('/repeat-intakes-this-month', batteryController.repeatIntakesThisMonth);
+router.get('/unserviceable-count', batteryController.unserviceableCount);
 router.get('/:code', batteryController.getByCode);
 // Registering a battery from the Generate QR Code page is a routine
 // front-desk action, open to any authenticated user.

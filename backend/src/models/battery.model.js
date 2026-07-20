@@ -74,7 +74,10 @@ async function findPage({
             last_parts.part_names AS last_repaired_parts,
             last_parts.staff_name AS last_repaired_by,
             COALESCE(month_stats.visit_count, 0) AS repairs_this_month,
-            month_stats.visit_dates AS repairs_this_month_dates
+            month_stats.visit_dates AS repairs_this_month_dates,
+            last_issue.reason AS issue_reason,
+            last_issue.note AS issue_note,
+            last_issue.reported_at AS issue_reported_at
      FROM batteries b
      LEFT JOIN LATERAL (
        SELECT r.repaired_at, r.batch_id
@@ -98,6 +101,14 @@ async function findPage({
        WHERE r3.battery_id = b.id
          AND date_trunc('month', r3.repaired_at) = date_trunc('month', now())
      ) month_stats ON true
+     LEFT JOIN LATERAL (
+       SELECT ir.label AS reason, bi.note, bi.reported_at
+       FROM battery_issues bi
+       JOIN issue_reasons ir ON ir.id = bi.reason_id
+       WHERE bi.battery_id = b.id
+       ORDER BY bi.reported_at DESC
+       LIMIT 1
+     ) last_issue ON true
      ${whereClause}
      ORDER BY ${qrGenerated ? 'b.qr_generated_at ASC, b.id ASC' : 'b.created_at DESC, b.id DESC'}
      LIMIT $${params.length - 1} OFFSET $${params.length}`,
@@ -459,6 +470,12 @@ async function countByClientName(clientName) {
   return rows[0].count;
 }
 
+// Powers the Unserviceable Batteries page's 100-battery popup alert.
+async function countByStatus(status) {
+  const { rows } = await db.query('SELECT COUNT(*)::int AS count FROM batteries WHERE status = $1', [status]);
+  return rows[0].count;
+}
+
 // Batteries that have come in on more than one truck intake within the
 // current calendar month — a repeat-intake flag surfaced in the navbar so
 // staff notice a battery bouncing back in unusually fast, same spirit as
@@ -500,6 +517,7 @@ module.exports = {
   updateStatus,
   updateClientName,
   countByClientName,
+  countByStatus,
   createForClient,
   listSerialNumbers,
   findRepeatIntakesThisMonth,

@@ -3,6 +3,7 @@ const batteryModel = require('../models/battery.model');
 const auditLogModel = require('../models/audit-log.model');
 const truckIntakeService = require('../services/truck-intake.service');
 const { parseTruckIntakeSheet } = require('../utils/parse-truck-intake-sheet');
+const realtime = require('../realtime');
 
 async function list(req, res, next) {
   try {
@@ -54,6 +55,7 @@ async function create(req, res, next) {
       details: { truckNumber, driverName, batteryCount, clientId, scannedCount: cleanScannedIds.length },
     });
 
+    realtime.broadcastRepeatIntakes().catch((err) => console.error('broadcastRepeatIntakes:', err));
     res.status(201).json({ intake, batteries });
   } catch (err) {
     next(err);
@@ -104,6 +106,9 @@ async function importSheet(req, res, next) {
       details: { fileName: req.file.originalname, created: created.length, failed: failed.length },
     });
 
+    if (created.length > 0) {
+      realtime.broadcastRepeatIntakes().catch((err) => console.error('broadcastRepeatIntakes:', err));
+    }
     res.status(201).json({ created, failed });
   } catch (err) {
     next(err);

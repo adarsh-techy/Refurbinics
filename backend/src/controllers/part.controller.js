@@ -1,4 +1,5 @@
 const partModel = require('../models/part.model');
+const realtime = require('../realtime');
 
 async function list(req, res, next) {
   try {
@@ -35,6 +36,7 @@ async function create(req, res, next) {
       quantity: quantity || 0,
       repairCost: repairCost || 0,
     });
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.status(201).json(part);
   } catch (err) {
     next(err);
@@ -53,6 +55,7 @@ async function update(req, res, next) {
     if (!part) {
       return res.status(404).json({ message: 'Part not found' });
     }
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.json(part);
   } catch (err) {
     next(err);
@@ -62,6 +65,7 @@ async function update(req, res, next) {
 async function remove(req, res, next) {
   try {
     await partModel.remove(req.params.id);
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.status(204).end();
   } catch (err) {
     // FK violation: this part has been used in a repair.
@@ -88,6 +92,7 @@ async function restock(req, res, next) {
       note: req.body.note,
       adjustedByUserId: req.user.id,
     });
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.json(part);
   } catch (err) {
     if (err.status === 404) {

@@ -2,6 +2,7 @@ const crypto = require('crypto');
 const repairModel = require('../models/repair.model');
 const auditLogModel = require('../models/audit-log.model');
 const staffModel = require('../models/staff.model');
+const realtime = require('../realtime');
 
 const DEFAULT_LIMIT = 15;
 const MAX_LIMIT = 100;
@@ -74,6 +75,7 @@ async function create(req, res, next) {
       details: { batteryId, staffId, partId, laborCharge },
     });
 
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.status(201).json(repair);
   } catch (err) {
     next(err);
@@ -89,6 +91,7 @@ async function update(req, res, next) {
     if (!repair) {
       return res.status(404).json({ message: 'Repair not found' });
     }
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.json(repair);
   } catch (err) {
     next(err);
@@ -98,6 +101,7 @@ async function update(req, res, next) {
 async function remove(req, res, next) {
   try {
     await repairModel.remove(req.params.id);
+    realtime.broadcastOutOfStockParts().catch((err) => console.error('broadcastOutOfStockParts:', err));
     res.status(204).end();
   } catch (err) {
     next(err);

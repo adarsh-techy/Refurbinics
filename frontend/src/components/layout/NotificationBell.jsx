@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../../services/api-client';
+import { socket } from '../../services/socket-client';
 import { hasPermission } from '../../utils/permissions';
-
-const POLL_MS = 60000;
 
 // Bell icon with a badge count of out-of-stock parts. Opening it lists each
 // one; clicking an item (or "View Inventory") jumps to the Inventory page.
-// Only shown to users who can actually reach that page.
+// Only shown to users who can actually reach that page. Kept live by the
+// server pushing a fresh list over the socket whenever stock changes (see
+// backend/src/realtime) instead of polling.
 function NotificationBell() {
   const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
@@ -29,8 +30,12 @@ function NotificationBell() {
   useEffect(() => {
     if (!canViewInventory) return undefined;
     loadOutOfStock();
-    const interval = setInterval(loadOutOfStock, POLL_MS);
-    return () => clearInterval(interval);
+    socket.on('connect', loadOutOfStock);
+    socket.on('parts:out-of-stock', setOutOfStock);
+    return () => {
+      socket.off('connect', loadOutOfStock);
+      socket.off('parts:out-of-stock', setOutOfStock);
+    };
   }, [canViewInventory]);
 
   useEffect(() => {
@@ -61,13 +66,13 @@ function NotificationBell() {
         type="button"
         onClick={handleToggle}
         aria-label="Notifications"
-        className="relative rounded-md p-2.5 text-neutral-300 hover:bg-neutral-900 hover:text-white"
+        className="relative rounded-md p-2.5 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-900 dark:text-neutral-300 dark:hover:bg-neutral-900 dark:hover:text-white"
       >
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-7 w-7">
           <path d="M10 2a6 6 0 0 0-6 6c0 1.887-.454 3.665-1.257 5.234a.75.75 0 0 0 .515 1.076c1.65.351 3.32.618 5.008.799a3 3 0 1 0 5.468 0 41.7 41.7 0 0 0 5.008-.799.75.75 0 0 0 .515-1.076A11.45 11.45 0 0 1 16 8a6 6 0 0 0-6-6ZM8.05 14.943a33.54 33.54 0 0 0 3.9 0 1.5 1.5 0 0 1-3.9 0Z" />
         </svg>
         {outOfStock.length > 0 && (
-          <span className="absolute right-0.5 top-0.5 flex h-5 min-w-[1.25rem] animate-pulse items-center justify-center rounded-full bg-critical-600 px-1 text-xs font-semibold text-white ring-2 ring-black">
+          <span className="absolute right-0.5 top-0.5 flex h-5 min-w-[1.25rem] animate-pulse items-center justify-center rounded-full bg-critical-600 px-1 text-xs font-semibold text-white ring-2 ring-white dark:ring-black">
             {outOfStock.length}
           </span>
         )}

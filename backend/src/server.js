@@ -5,6 +5,7 @@ const https = require('https');
 const app = require('./app');
 const env = require('./config/env');
 const db = require('./config/db');
+const realtime = require('./realtime');
 
 // Self-signed dev cert (see certs/). Served *alongside* plain http, not
 // instead of it: the web frontend needs https for getUserMedia (browsers
@@ -26,18 +27,26 @@ async function start() {
     process.exit(1);
   }
 
-  http.createServer(app).listen(env.port, () => {
+  const httpServer = http.createServer(app);
+  httpServer.listen(env.port, () => {
     console.log(`Refurbinics API running on port ${env.port} [${env.nodeEnv}] (http)`);
   });
 
+  const servers = [httpServer];
+
   const hasCert = fs.existsSync(KEY_PATH) && fs.existsSync(CERT_PATH);
   if (hasCert) {
-    https
-      .createServer({ key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) }, app)
-      .listen(env.httpsPort, () => {
-        console.log(`Refurbinics API also running on port ${env.httpsPort} [${env.nodeEnv}] (https)`);
-      });
+    const httpsServer = https.createServer(
+      { key: fs.readFileSync(KEY_PATH), cert: fs.readFileSync(CERT_PATH) },
+      app
+    );
+    httpsServer.listen(env.httpsPort, () => {
+      console.log(`Refurbinics API also running on port ${env.httpsPort} [${env.nodeEnv}] (https)`);
+    });
+    servers.push(httpsServer);
   }
+
+  realtime.init(servers);
 }
 
 start();
