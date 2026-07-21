@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { login } from './auth-slice';
 import loginImage from '../../assets/logpage.png';
 import logo from '../../assets/logo.png';
@@ -114,7 +114,14 @@ function LoginPage() {
             </button>
           </form>
 
-          <p className="mt-8 text-center text-xs text-neutral-500">
+          <p className="mt-6 text-center text-sm text-neutral-400">
+            Need an account?{' '}
+            <Link to="/register" className="font-medium text-emerald-400 hover:underline">
+              Create one
+            </Link>
+          </p>
+
+          <p className="mt-4 text-center text-xs text-neutral-500">
             © {new Date().getFullYear()} Refurbinics. All rights reserved.
           </p>
         </div>
