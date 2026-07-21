@@ -32,10 +32,15 @@ const NAV_GROUPS = [
     links: [
       { to: '/truck-intakes', label: 'Intake', permission: 'truck_intakes' },
       { to: '/batteries', label: 'All Batteries', end: true },
-      { to: '/batteries/unserviceable', label: 'Unserviceable' },
       { to: '/batteries-qr-code', label: 'Generate QR Code' },
       { to: '/repairs', label: 'Repairs', permission: 'repairs' },
       { to: '/returns', label: 'Returns', permission: 'returns' },
+    ],
+  },
+  {
+    heading: 'Unserviceable & Recycle',
+    links: [
+      { to: '/batteries/unserviceable', label: 'Unserviceable' },
       { to: '/recycle', label: 'Recycle', permission: 'recycle' },
     ],
   },
