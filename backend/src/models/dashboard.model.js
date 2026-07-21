@@ -103,14 +103,15 @@ async function getHourlyRepairsToday(date) {
 // (older repairs logged before duration tracking existed have none).
 async function getAvgDurationByPart(limit) {
   const { rows } = await db.query(
-    `SELECT p.name AS part_name,
+    `SELECT p.id AS part_id,
+            p.name AS part_name,
             ROUND(AVG(r.duration_seconds))::int AS avg_duration_seconds,
             COUNT(*)::int AS repair_count
      FROM repairs r
      JOIN parts p ON p.id = r.part_id
      WHERE r.duration_seconds IS NOT NULL
        AND r.repaired_at >= now() - interval '90 days'
-     GROUP BY p.name
+     GROUP BY p.id, p.name
      ORDER BY avg_duration_seconds DESC
      LIMIT $1`,
     [limit]
@@ -126,14 +127,15 @@ async function getAvgDurationByPart(limit) {
 // many parts were changed).
 async function getAvgDurationByStaff(limit) {
   const { rows } = await db.query(
-    `SELECT s.name AS staff_name,
+    `SELECT s.id AS staff_id,
+            s.name AS staff_name,
             ROUND(AVG(r.duration_seconds))::int AS avg_duration_seconds,
             COUNT(*)::int AS repair_count
      FROM repairs r
      JOIN staff s ON s.id = r.staff_id
      WHERE r.duration_seconds IS NOT NULL
        AND r.repaired_at >= now() - interval '90 days'
-     GROUP BY s.name
+     GROUP BY s.id, s.name
      ORDER BY avg_duration_seconds DESC
      LIMIT $1`,
     [limit]

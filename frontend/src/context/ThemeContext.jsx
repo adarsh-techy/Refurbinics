@@ -9,9 +9,9 @@ function getInitialTheme() {
   return localStorage.getItem(STORAGE_KEY) === 'light' ? 'light' : 'dark';
 }
 
-// Tracks the admin shell's light/dark preference (Navbar/Sidebar/page
-// background) in localStorage, independent of the technician and client
-// portals which stay permanently dark — see DashboardLayout.
+// Tracks the light/dark preference (Navbar/Sidebar/page background) in
+// localStorage, shared by the admin and client shells — see DashboardLayout.
+// The technician portal stays permanently dark regardless of this setting.
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(getInitialTheme);
 

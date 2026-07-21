@@ -4,6 +4,8 @@ import { Outlet } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import Navbar from './Navbar';
 import PortalHeader from './PortalHeader';
+import ThemeToggle from './ThemeToggle';
+import UkClock from './UkClock';
 import LowStockAlert from './LowStockAlert';
 import UnserviceableBatteriesAlert from './UnserviceableBatteriesAlert';
 import { useTheme } from '../../context/ThemeContext';
@@ -60,28 +62,35 @@ function DashboardLayout() {
   }
 
   // Clients get the same desktop sidebar as admin/staff (via CLIENT_NAV_GROUPS
-  // in Sidebar), just without the admin-only Navbar (clock/notifications) or
-  // LowStockAlert. Below md, the sidebar is hidden, so a small top bar
-  // stands in with just a logo + hamburger to reach the same nav via drawer.
+  // in Sidebar), just without the admin-only Navbar's notifications. Below
+  // md, the sidebar is hidden, so a small top bar stands in with a logo +
+  // hamburger to reach the same nav via drawer; that same bar carries the
+  // UK clock and light/dark ThemeToggle, right-aligned, at every width (it
+  // collapses to a borderless strip on desktop since the sidebar already
+  // shows the logo there).
   if (user?.role === 'client') {
     return (
-      <div className="dark flex min-h-screen bg-surface-950">
+      <div className={`${theme === 'dark' ? 'dark' : ''} flex min-h-screen bg-white dark:bg-surface-950`}>
         <Sidebar mobileOpen={mobileNavOpen} onClose={() => setMobileNavOpen(false)} />
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 border-b border-white/10 bg-surface-950 px-4 md:hidden">
+          <header className="sticky top-0 z-10 flex h-16 shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 dark:border-white/10 dark:bg-surface-950 sm:px-6 md:justify-end md:border-0 md:bg-transparent">
             <button
               type="button"
               onClick={() => setMobileNavOpen(true)}
               aria-label="Open menu"
-              className="rounded-md p-2 text-neutral-300 hover:bg-white/5 hover:text-white"
+              className="rounded-md p-2 text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-neutral-300 dark:hover:bg-white/5 dark:hover:text-white md:hidden"
             >
               <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
               </svg>
             </button>
-            <img src={refurbnicsLogo} alt="Refurbinics" className="-my-6 h-16 w-auto" />
+            <img src={refurbnicsLogo} alt="Refurbinics" className="-my-6 h-16 w-auto md:hidden" />
+            <div className="ml-auto flex items-center gap-3 sm:gap-5">
+              <UkClock />
+              <ThemeToggle />
+            </div>
           </header>
-          <main className="min-w-0 flex-1 bg-surface-950 p-4 sm:p-6">
+          <main className="min-w-0 flex-1 bg-white p-4 dark:bg-surface-950 sm:p-6">
             <Suspense fallback={<PageFallback />}>
               <Outlet />
             </Suspense>

@@ -12,11 +12,27 @@ function ClientProfilePage() {
   const dispatch = useDispatch();
   const user = useSelector((state) => state.auth.user);
 
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
+
+  function openPasswordForm() {
+    setError(null);
+    setSuccess(false);
+    setShowPasswordForm(true);
+  }
+
+  function closePasswordForm() {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setError(null);
+    setShowPasswordForm(false);
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -28,8 +44,9 @@ function ClientProfilePage() {
     setSubmitting(true);
     setError(null);
     try {
-      const { data } = await apiClient.patch('/auth/change-password', { newPassword });
+      const { data } = await apiClient.patch('/auth/change-password', { currentPassword, newPassword });
       dispatch(setUser(data.user));
+      setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
       setSuccess(true);
@@ -60,42 +77,80 @@ function ClientProfilePage() {
         </div>
 
         <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:border-surface-700 dark:bg-surface-900">
-          <h2 className="mb-4 text-sm font-semibold text-slate-800 dark:text-neutral-100">Change Password</h2>
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-            <div>
-              <label className={labelClasses}>New Password</label>
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                minLength={8}
-                className={inputClasses}
-                required
-              />
-            </div>
-            <div>
-              <label className={labelClasses}>Confirm Password</label>
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                minLength={8}
-                className={inputClasses}
-                required
-              />
-            </div>
+          <div className="flex items-center justify-between gap-4">
+            <h2 className="text-sm font-semibold text-slate-800 dark:text-neutral-100">Change Password</h2>
+            {!showPasswordForm && (
+              <button
+                type="button"
+                onClick={openPasswordForm}
+                className="rounded-md border border-slate-300 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-surface-600 dark:text-neutral-200 dark:hover:bg-surface-800"
+              >
+                Change Password
+              </button>
+            )}
+          </div>
 
-            {error && <p className="text-sm text-critical-600 dark:text-red-400">{error}</p>}
-            {success && <p className="text-sm text-brand-700 dark:text-emerald-400">Password updated.</p>}
+          {success && !showPasswordForm && (
+            <p className="mt-3 text-sm text-brand-700 dark:text-emerald-400">Password updated.</p>
+          )}
 
-            <button
-              type="submit"
-              disabled={submitting}
-              className="self-start rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
-            >
-              {submitting ? 'Saving…' : 'Update Password'}
-            </button>
-          </form>
+          {showPasswordForm && (
+            <form onSubmit={handleSubmit} className="mt-4 flex flex-col gap-4">
+              <div>
+                <label className={labelClasses}>Current Password</label>
+                <input
+                  type="password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  className={inputClasses}
+                  required
+                  autoFocus
+                />
+              </div>
+              <div>
+                <label className={labelClasses}>New Password</label>
+                <input
+                  type="password"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  minLength={8}
+                  className={inputClasses}
+                  required
+                />
+              </div>
+              <div>
+                <label className={labelClasses}>Confirm Password</label>
+                <input
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  minLength={8}
+                  className={inputClasses}
+                  required
+                />
+              </div>
+
+              {error && <p className="text-sm text-critical-600 dark:text-red-400">{error}</p>}
+              {success && <p className="text-sm text-brand-700 dark:text-emerald-400">Password updated.</p>}
+
+              <div className="flex items-center gap-3">
+                <button
+                  type="submit"
+                  disabled={submitting}
+                  className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
+                >
+                  {submitting ? 'Saving…' : 'Update Password'}
+                </button>
+                <button
+                  type="button"
+                  onClick={closePasswordForm}
+                  className="text-sm font-medium text-slate-600 hover:text-slate-900 dark:text-neutral-400 dark:hover:text-white"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </div>

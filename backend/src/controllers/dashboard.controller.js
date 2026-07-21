@@ -83,11 +83,13 @@ async function summary(req, res, next) {
       hourlyRepairsToday: hourlyRows.map((r) => ({ hour: r.hour, count: r.count })),
       serviceTimes: {
         byPart: byPart.map((r) => ({
+          partId: r.part_id,
           partName: r.part_name,
           avgDurationSeconds: r.avg_duration_seconds,
           repairCount: r.repair_count,
         })),
         byStaff: byStaff.map((r) => ({
+          staffId: r.staff_id,
           staffName: r.staff_name,
           avgDurationSeconds: r.avg_duration_seconds,
           repairCount: r.repair_count,

@@ -49,39 +49,43 @@ function buildHourlyRange(hourlyData) {
 // the bar (relative to the slowest entry in this list), the longer that
 // service/technician takes on average. Slowest-first, so #1 is the one
 // worth an admin's attention.
-function DurationList({ items, getLabel }) {
+function DurationList({ items, getLabel, getTo }) {
   const max = Math.max(1, ...items.map((i) => i.avgDurationSeconds || 0));
+  const itemClasses =
+    'flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-surface-800';
+
   return (
     <ul className="flex flex-col gap-1">
-      {items.map((item, i) => (
-        <li
-          key={getLabel(item)}
-          className="flex items-center gap-3 rounded-lg px-2 py-2.5 transition-colors hover:bg-slate-50 dark:hover:bg-surface-800"
-        >
-          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500 dark:bg-surface-700 dark:text-neutral-400">
-            {i + 1}
-          </span>
-          <div className="min-w-0 flex-1">
-            <div className="mb-1 flex items-center justify-between gap-2 text-xs">
-              <span className="truncate font-medium text-slate-700 dark:text-neutral-200">
-                {getLabel(item)}
-              </span>
-              <span className="shrink-0 font-semibold text-blue-700 dark:text-blue-400">
-                {formatDuration(item.avgDurationSeconds)}
-              </span>
+      {items.map((item, i) => {
+        const to = getTo?.(item);
+        const Wrapper = to ? Link : 'li';
+        return (
+          <Wrapper key={getLabel(item)} {...(to ? { to } : {})} className={itemClasses}>
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-slate-100 text-[11px] font-semibold text-slate-500 dark:bg-surface-700 dark:text-neutral-400">
+              {i + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="mb-1 flex items-center justify-between gap-2 text-xs">
+                <span className="truncate font-medium text-slate-700 dark:text-neutral-200">
+                  {getLabel(item)}
+                </span>
+                <span className="shrink-0 font-semibold text-blue-700 dark:text-blue-400">
+                  {formatDuration(item.avgDurationSeconds)}
+                </span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-surface-800">
+                <div
+                  className="h-full rounded-full bg-brand-500 dark:bg-emerald-500"
+                  style={{ width: `${Math.max(4, (item.avgDurationSeconds / max) * 100)}%` }}
+                />
+              </div>
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-neutral-500">
+                {item.repairCount} repair{item.repairCount === 1 ? '' : 's'}
+              </p>
             </div>
-            <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-surface-800">
-              <div
-                className="h-full rounded-full bg-brand-500 dark:bg-emerald-500"
-                style={{ width: `${Math.max(4, (item.avgDurationSeconds / max) * 100)}%` }}
-              />
-            </div>
-            <p className="mt-1 text-[11px] text-slate-400 dark:text-neutral-500">
-              {item.repairCount} repair{item.repairCount === 1 ? '' : 's'}
-            </p>
-          </div>
-        </li>
-      ))}
+          </Wrapper>
+        );
+      })}
     </ul>
   );
 }
@@ -206,8 +210,9 @@ function DashboardPage() {
             <div className="mb-8 max-h-[27rem] overflow-y-auto pr-1">
               <ul className="flex flex-col gap-2">
                 {todaysRepairs.map((r) => (
-                  <li
+                  <Link
                     key={r.id}
+                    to={`/batteries/${r.batteryCode}`}
                     className="flex items-center gap-4 rounded-lg px-3 py-3 transition-colors hover:bg-slate-50 dark:hover:bg-blue-900/30"
                   >
                     <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-semibold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
@@ -226,7 +231,7 @@ function DashboardPage() {
                         minute: '2-digit',
                       })}
                     </span>
-                  </li>
+                  </Link>
                 ))}
               </ul>
             </div>
@@ -290,7 +295,11 @@ function DashboardPage() {
               Not enough completed repairs yet to show this.
             </p>
           ) : (
-            <DurationList items={serviceTimes.byPart} getLabel={(i) => i.partName} />
+            <DurationList
+              items={serviceTimes.byPart}
+              getLabel={(i) => i.partName}
+              getTo={(i) => (i.partId ? `/parts/${i.partId}` : null)}
+            />
           )}
         </div>
 
@@ -313,7 +322,11 @@ function DashboardPage() {
               Not enough completed repairs yet to show this.
             </p>
           ) : (
-            <DurationList items={serviceTimes.byStaff} getLabel={(i) => i.staffName} />
+            <DurationList
+              items={serviceTimes.byStaff}
+              getLabel={(i) => i.staffName}
+              getTo={(i) => (i.staffId ? `/staff/${i.staffId}` : null)}
+            />
           )}
         </div>
       </div>

@@ -77,13 +77,28 @@ async function me(req, res) {
 
 // Sets the caller's own password — used by the forced first-login change
 // screen for technician/client accounts created with an admin-issued temp
-// password (see must_change_password), but works for anyone.
+// password (see must_change_password), and by voluntary changes elsewhere
+// (e.g. the client profile page).
 async function changePassword(req, res, next) {
   try {
-    const { newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
     if (typeof newPassword !== 'string' || newPassword.length < 8) {
       return res.status(400).json({ message: 'Password must be at least 8 characters' });
     }
+
+    // The forced first-login screen doesn't collect a current password — the
+    // admin-issued temp password was just verified at login. Any other
+    // caller must confirm it before we'll swap it out.
+    if (!req.user.must_change_password) {
+      if (typeof currentPassword !== 'string' || !currentPassword) {
+        return res.status(400).json({ message: 'Current password is required' });
+      }
+      const fullUser = await userModel.findByEmail(req.user.email);
+      if (!fullUser || !(await bcrypt.compare(currentPassword, fullUser.password_hash))) {
+        return res.status(401).json({ message: 'Current password is incorrect' });
+      }
+    }
+
     const passwordHash = await bcrypt.hash(newPassword, 10);
     const user = await userModel.updatePassword(req.user.id, passwordHash);
     res.json({ user });
