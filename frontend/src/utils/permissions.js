@@ -6,6 +6,7 @@ export const PERMISSIONS = [
   { key: 'staff', label: 'Staff' },
   { key: 'parts', label: 'Inventory' },
   { key: 'returns', label: 'Returns' },
+  { key: 'recycle', label: 'Recycle' },
   { key: 'audit_logs', label: 'Audit Log' },
   { key: 'clients', label: 'Clients' },
   { key: 'issue_reasons', label: 'Issue Reasons' },

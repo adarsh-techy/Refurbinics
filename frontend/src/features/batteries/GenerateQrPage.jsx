@@ -356,7 +356,7 @@ function GenerateQrPage() {
             <select
               value={clientName}
               onChange={(e) => setClientName(e.target.value)}
-              className="w-full rounded-md border border-blue-200 bg-black px-3.5 py-2.5 text-sm text-white focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800/40 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+              className="w-full rounded-md border border-blue-200 bg-blue-50/60 px-3.5 py-2.5 text-sm text-slate-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800/40 dark:bg-black dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
               required
             >
               <option value="">Select a client</option>
@@ -454,7 +454,7 @@ function GenerateQrPage() {
             <select
               value={listClientFilter}
               onChange={(e) => setListClientFilter(e.target.value)}
-              className="w-full max-w-[10rem] shrink-0 rounded-md border border-slate-300 bg-black px-3.5 py-2.5 text-sm text-white focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-blue-800/40 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+              className="w-full max-w-[10rem] shrink-0 rounded-md border border-slate-300 bg-white px-3.5 py-2.5 text-sm text-slate-900 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-blue-800/40 dark:bg-black dark:text-white dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
             >
               <option value="">All Clients</option>
               {(clients || []).map((c) => (

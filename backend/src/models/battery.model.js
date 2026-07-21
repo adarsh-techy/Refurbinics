@@ -62,7 +62,7 @@ async function findPage({
   // Service screen's scan/search suggestions, so an already-completed or
   // returned battery never shows up as something to start work on.
   if (activeOnly) {
-    conditions.push(`b.status NOT IN ('repaired', 'returned', 'unserviceable')`);
+    conditions.push(`b.status NOT IN ('repaired', 'returned', 'unserviceable', 'recycled')`);
   }
 
   const whereClause = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';

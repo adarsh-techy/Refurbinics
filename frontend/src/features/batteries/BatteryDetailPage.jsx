@@ -3,6 +3,7 @@ import { useSelector } from 'react-redux';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import apiClient from '../../services/api-client';
+import { socket } from '../../services/socket-client';
 import PageHeader from '../../components/ui/PageHeader';
 import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
@@ -243,6 +244,17 @@ function BatteryDetailPage() {
     load();
   }, [load]);
 
+  // Reloads while this page is open if the same battery changes elsewhere —
+  // e.g. a technician starting work, completing testing, or reporting an
+  // issue in the mobile app — instead of requiring a manual refresh.
+  useEffect(() => {
+    function handleUpdated(battery) {
+      if (battery?.battery_code === code) load();
+    }
+    socket.on('battery:updated', handleUpdated);
+    return () => socket.off('battery:updated', handleUpdated);
+  }, [code, load]);
+
   // Deterministic from the battery code (same as Generate QR Code's
   // regenerate-on-view) — nothing needs to be stored, so it can always be
   // rebuilt here rather than only being visible from the Generate QR page.
@@ -297,7 +309,7 @@ function BatteryDetailPage() {
     );
   }
 
-  const { battery, history, returns, visits } = result;
+  const { battery, history, returns, visits, recycleBatch } = result;
   const cycles = buildCycles(buildEvents(visits || [], history, returns));
   const totalSpent = history.reduce(
     (sum, h) => sum + Number(h.price) + Number(h.labor_charge || 0),
@@ -459,7 +471,7 @@ function BatteryDetailPage() {
         </button>
       </div>
 
-      {battery.status === 'unserviceable' && result.issues?.[0] && (
+      {(battery.status === 'unserviceable' || battery.status === 'recycled') && result.issues?.[0] && (
         <div className="mb-6 rounded-xl border border-critical-200 bg-critical-50 p-5 dark:border-red-500/30 dark:bg-red-500/10">
           <h2 className="mb-1 text-sm font-semibold text-critical-700 dark:text-red-300">
             {result.issues[0].reason_label}
@@ -470,6 +482,22 @@ function BatteryDetailPage() {
           <p className="text-xs text-slate-500 dark:text-neutral-500">
             Reported by {result.issues[0].staff_name} on{' '}
             {new Date(result.issues[0].reported_at).toLocaleString()}
+          </p>
+        </div>
+      )}
+
+      {battery.status === 'recycled' && recycleBatch && (
+        <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-5 dark:border-surface-700 dark:bg-surface-900">
+          <h2 className="mb-1 text-sm font-semibold text-slate-700 dark:text-neutral-200">Sent for Recycling</h2>
+          <p className="text-sm text-slate-600 dark:text-neutral-300">
+            Vehicle <span className="font-medium">{recycleBatch.vehicle_number}</span> · Driver{' '}
+            <span className="font-medium">{recycleBatch.driver_name}</span>
+          </p>
+          <p className="mt-1 text-xs text-slate-500 dark:text-neutral-500">
+            {new Date(recycleBatch.recycled_at).toLocaleString()} ·{' '}
+            <Link to={`/recycle/${recycleBatch.id}`} className="text-blue-700 hover:underline dark:text-blue-400">
+              View shipment
+            </Link>
           </p>
         </div>
       )}

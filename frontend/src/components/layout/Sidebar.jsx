@@ -36,6 +36,7 @@ const NAV_GROUPS = [
       { to: '/batteries-qr-code', label: 'Generate QR Code' },
       { to: '/repairs', label: 'Repairs', permission: 'repairs' },
       { to: '/returns', label: 'Returns', permission: 'returns' },
+      { to: '/recycle', label: 'Recycle', permission: 'recycle' },
     ],
   },
   {

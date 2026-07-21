@@ -8,6 +8,7 @@ const PERMISSIONS = [
   'staff',
   'parts',
   'returns',
+  'recycle',
   'audit_logs',
   'clients',
   'issue_reasons',

@@ -1,5 +1,6 @@
 const batteryModel = require('../models/battery.model');
 const staffModel = require('../models/staff.model');
+const recycleModel = require('../models/recycle.model');
 const realtime = require('../realtime');
 
 const DEFAULT_LIMIT = 15;
@@ -11,6 +12,7 @@ const VALID_STATUSES = new Set([
   'repaired',
   'returned',
   'unserviceable',
+  'recycled',
 ]);
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -79,13 +81,14 @@ async function getByCode(req, res, next) {
     if (!battery) {
       return res.status(404).json({ message: 'Battery not found' });
     }
-    const [history, returns, visits, issues] = await Promise.all([
+    const [history, returns, visits, issues, recycleBatch] = await Promise.all([
       batteryModel.findRepairHistory(battery.id),
       batteryModel.findReturnHistory(battery.id),
       batteryModel.findVisitHistory(battery.id),
       batteryModel.findIssueHistory(battery.id),
+      recycleModel.findByBatteryId(battery.id),
     ]);
-    res.json({ battery, history, returns, visits, issues });
+    res.json({ battery, history, returns, visits, issues, recycleBatch });
   } catch (err) {
     next(err);
   }
@@ -102,6 +105,7 @@ async function update(req, res, next) {
       return res.status(404).json({ message: 'Battery not found' });
     }
     realtime.broadcastUnserviceableCount().catch((err) => console.error('broadcastUnserviceableCount:', err));
+    realtime.broadcastBatteryUpdated(battery);
     res.json(battery);
   } catch (err) {
     next(err);
@@ -241,6 +245,7 @@ async function startWork(req, res, next) {
         message: 'This battery cannot be started — it may already be in progress or completed.',
       });
     }
+    realtime.broadcastBatteryUpdated(battery);
     res.json(battery);
   } catch (err) {
     next(err);
@@ -257,6 +262,7 @@ async function completeTesting(req, res, next) {
         message: 'This battery cannot be marked completed — it may not be in testing.',
       });
     }
+    realtime.broadcastBatteryUpdated(battery);
     res.json(battery);
   } catch (err) {
     next(err);
@@ -292,6 +298,7 @@ async function reportIssue(req, res, next) {
       });
     }
     realtime.broadcastUnserviceableCount().catch((err) => console.error('broadcastUnserviceableCount:', err));
+    realtime.broadcastBatteryUpdated(battery);
     res.json(battery);
   } catch (err) {
     // FK violation: the reason id doesn't exist.
@@ -311,6 +318,7 @@ async function setBlocked(req, res, next) {
     if (!battery) {
       return res.status(404).json({ message: 'Battery not found' });
     }
+    realtime.broadcastBatteryUpdated(battery);
     res.json(battery);
   } catch (err) {
     next(err);

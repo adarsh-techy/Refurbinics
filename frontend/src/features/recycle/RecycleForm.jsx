@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import apiClient from '../../services/api-client';
-import useFetchList from '../../utils/use-fetch-list';
 import QrScanner from '../../components/ui/QrScanner';
 import extractBatteryCode from '../../utils/extract-battery-code';
 
@@ -8,13 +7,11 @@ const inputClasses =
   'w-full rounded-md border border-slate-300 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 focus:border-brand-500 focus:outline-none focus:ring-2 focus:ring-brand-500/30 dark:border-surface-600 dark:bg-surface-800 dark:text-neutral-100 dark:placeholder:text-neutral-500 dark:focus:border-emerald-500 dark:focus:ring-emerald-500/30';
 const labelClasses = 'mb-1.5 block text-sm font-medium text-slate-700 dark:text-neutral-200';
 
-// Same flow as Add Truck Intake: pick a client first, then scan/add that
-// client's own batteries — here scoped to work-completed ('repaired')
-// batteries only, since a return means handing finished work back.
-function ReturnForm({ onCreated, onCancel }) {
-  const { data: clients } = useFetchList('/clients');
-
-  const [form, setForm] = useState({ truckNumber: '', driverName: '', clientId: '' });
+// Same scan-to-add flow as Record Return, scoped to 'unserviceable' batteries
+// instead of a single client's 'repaired' ones — a recycle shipment can carry
+// batteries from any client, since they're all terminal/dead either way.
+function RecycleForm({ onCreated, onCancel }) {
+  const [form, setForm] = useState({ vehicleNumber: '', driverName: '' });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
@@ -23,42 +20,26 @@ function ReturnForm({ onCreated, onCancel }) {
   const [scanError, setScanError] = useState(null);
   const [scanLoading, setScanLoading] = useState(false);
   const [cameraOpen, setCameraOpen] = useState(false);
-  const [clientBatteryCodes, setClientBatteryCodes] = useState([]);
+  const [unserviceableCodes, setUnserviceableCodes] = useState([]);
   const [showScanSuggestions, setShowScanSuggestions] = useState(false);
-  const [showClientSuggestions, setShowClientSuggestions] = useState(false);
 
-  const selectedClient = (clients || []).find((c) => String(c.id) === form.clientId);
-
-  // Once a client is picked, load that client's repaired-and-ready-to-return
-  // batteries so the scan box can be restricted to just those codes.
   useEffect(() => {
-    if (!form.clientId || !selectedClient) {
-      setClientBatteryCodes([]);
-      return;
-    }
     let cancelled = false;
     apiClient
-      .get('/batteries', { params: { clientName: selectedClient.name, status: 'repaired', limit: 100 } })
+      .get('/batteries', { params: { status: 'unserviceable', limit: 100 } })
       .then(({ data }) => {
-        if (!cancelled) setClientBatteryCodes((data.data || []).map((b) => b.battery_code));
+        if (!cancelled) setUnserviceableCodes((data.data || []).map((b) => b.battery_code));
       })
       .catch(() => {
-        if (!cancelled) setClientBatteryCodes([]);
+        if (!cancelled) setUnserviceableCodes([]);
       });
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [form.clientId]);
+  }, []);
 
   function updateField(field, value) {
     setForm((prev) => ({ ...prev, [field]: value }));
-  }
-
-  function selectClient(id) {
-    updateField('clientId', id);
-    setAddedBatteries([]);
-    setShowClientSuggestions(false);
   }
 
   async function handleScanValue(rawValue) {
@@ -74,8 +55,8 @@ function ReturnForm({ onCreated, onCancel }) {
         setScanError(`${battery.battery_code} has already been added.`);
         return;
       }
-      if (battery.status !== 'repaired') {
-        setScanError(`${battery.battery_code} isn't ready to return yet (still ${battery.status.replace('_', ' ')}).`);
+      if (battery.status !== 'unserviceable') {
+        setScanError(`${battery.battery_code} isn't marked unserviceable (currently ${battery.status.replace('_', ' ')}).`);
         return;
       }
       setAddedBatteries((prev) => [...prev, battery]);
@@ -96,12 +77,12 @@ function ReturnForm({ onCreated, onCancel }) {
 
   // Once added, a battery drops out of the pool — one battery, one add.
   const addedCodes = new Set(addedBatteries.map((b) => b.battery_code));
-  const availableClientBatteryCodes = clientBatteryCodes.filter((code) => !addedCodes.has(code));
+  const availableCodes = unserviceableCodes.filter((code) => !addedCodes.has(code));
 
-  const scanInputIsAvailable = availableClientBatteryCodes.some(
+  const scanInputIsAvailable = availableCodes.some(
     (code) => code.toLowerCase() === scanInput.trim().toLowerCase()
   );
-  const scanSuggestions = availableClientBatteryCodes.filter((code) =>
+  const scanSuggestions = availableCodes.filter((code) =>
     code.toLowerCase().includes(scanInput.trim().toLowerCase())
   );
 
@@ -124,22 +105,17 @@ function ReturnForm({ onCreated, onCancel }) {
 
   async function handleSubmit(e) {
     e.preventDefault();
-    if (!form.clientId) {
-      setError('Select a client.');
-      return;
-    }
     if (addedBatteries.length === 0) {
-      setError('Scan at least one repaired battery to return.');
+      setError('Scan at least one unserviceable battery to recycle.');
       return;
     }
 
     setSubmitting(true);
     setError(null);
     try {
-      await apiClient.post('/returns', {
-        truckNumber: form.truckNumber,
+      await apiClient.post('/recycle', {
+        vehicleNumber: form.vehicleNumber,
         driverName: form.driverName,
-        clientId: form.clientId,
         batteryIds: addedBatteries.map((b) => b.id),
       });
       onCreated();
@@ -154,11 +130,11 @@ function ReturnForm({ onCreated, onCancel }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-5">
       <div className="flex flex-col gap-4">
         <div>
-          <label className={labelClasses}>Truck Number</label>
+          <label className={labelClasses}>Vehicle Number</label>
           <input
             type="text"
-            value={form.truckNumber}
-            onChange={(e) => updateField('truckNumber', e.target.value)}
+            value={form.vehicleNumber}
+            onChange={(e) => updateField('vehicleNumber', e.target.value)}
             placeholder="e.g. KL18S1234"
             className={inputClasses}
             required
@@ -177,48 +153,15 @@ function ReturnForm({ onCreated, onCancel }) {
           />
         </div>
 
-        <div className="relative">
-          <label className={labelClasses}>Client</label>
-          <input
-            type="text"
-            value={selectedClient ? selectedClient.name : ''}
-            onFocus={() => setShowClientSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowClientSuggestions(false), 150)}
-            placeholder="Click to choose a client"
-            readOnly
-            className={`${inputClasses} cursor-pointer`}
-            required
-          />
-
-          {showClientSuggestions && (clients || []).length > 0 && (
-            <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-200 bg-white py-1 shadow-lg dark:border-blue-800/40 dark:bg-black">
-              {(clients || []).map((c) => (
-                <li key={c.id}>
-                  <button
-                    type="button"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => selectClient(String(c.id))}
-                    className="block w-full px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 dark:text-neutral-100 dark:hover:bg-blue-900/30"
-                  >
-                    {c.name}
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
         <div className="rounded-xl border border-blue-300 bg-slate-50 p-4 dark:border-blue-800/40 dark:bg-surface-950">
           <div className="mb-1 flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-slate-800 dark:text-neutral-100">Scan Batteries (returning)</h3>
+            <h3 className="text-sm font-semibold text-slate-800 dark:text-neutral-100">Scan Batteries (recycling)</h3>
             <span className="rounded-full bg-white px-2.5 py-0.5 text-xs font-medium text-slate-500 dark:bg-surface-800 dark:text-neutral-400">
               {addedBatteries.length} added
             </span>
           </div>
           <p className="mb-3 text-xs text-slate-500 dark:text-neutral-400">
-            {form.clientId
-              ? 'Only this client\'s work-completed batteries can be added — scan, type, or pick from the list below.'
-              : 'Select a client above first, then scan or search that client’s work-completed batteries here.'}
+            Only batteries marked unserviceable can be added — scan, type, or pick from the list below.
           </p>
 
           <div className="flex gap-2">
@@ -232,7 +175,7 @@ function ReturnForm({ onCreated, onCancel }) {
                 onBlur={() => setTimeout(() => setShowScanSuggestions(false), 150)}
                 placeholder="Scan or type a battery code, then press Enter"
                 autoComplete="off"
-                disabled={scanLoading || !form.clientId}
+                disabled={scanLoading}
                 className={`${inputClasses} disabled:cursor-not-allowed disabled:opacity-50`}
               />
 
@@ -255,14 +198,14 @@ function ReturnForm({ onCreated, onCancel }) {
 
               {scanInput.trim() && !scanInputIsAvailable && (
                 <p className="mt-1.5 text-xs text-critical-600 dark:text-red-400">
-                  Not a work-completed battery for this client.
+                  Not an unserviceable battery.
                 </p>
               )}
             </div>
             <button
               type="button"
               onClick={submitScanInput}
-              disabled={scanLoading || !form.clientId || !scanInputIsAvailable}
+              disabled={scanLoading || !scanInputIsAvailable}
               className="shrink-0 rounded-md bg-brand-600 px-3.5 py-2.5 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
             >
               Add
@@ -270,8 +213,7 @@ function ReturnForm({ onCreated, onCancel }) {
             <button
               type="button"
               onClick={() => setCameraOpen((prev) => !prev)}
-              disabled={!form.clientId}
-              className="shrink-0 rounded-md border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-surface-600 dark:bg-surface-800 dark:text-neutral-200 dark:hover:bg-surface-700"
+              className="shrink-0 rounded-md border border-slate-300 bg-white px-3.5 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50 dark:border-surface-600 dark:bg-surface-800 dark:text-neutral-200 dark:hover:bg-surface-700"
             >
               {cameraOpen ? 'Close Camera' : 'Use Camera'}
             </button>
@@ -279,7 +221,7 @@ function ReturnForm({ onCreated, onCancel }) {
 
           {scanError && <p className="mt-2 text-xs text-critical-600 dark:text-red-400">{scanError}</p>}
 
-          {cameraOpen && form.clientId && (
+          {cameraOpen && (
             <div className="mt-3">
               <QrScanner onScan={(value) => handleScanValue(value)} onClose={() => setCameraOpen(false)} />
             </div>
@@ -320,7 +262,7 @@ function ReturnForm({ onCreated, onCancel }) {
             {addedBatteries.length}
           </p>
           <p className="mt-1.5 text-xs text-slate-500 dark:text-neutral-400">
-            Scanned returning batteries, added automatically.
+            Scanned unserviceable batteries, added automatically.
           </p>
         </div>
       </div>
@@ -342,11 +284,11 @@ function ReturnForm({ onCreated, onCancel }) {
           disabled={submitting}
           className="rounded-md bg-brand-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-brand-700 disabled:opacity-50 dark:bg-emerald-600 dark:hover:bg-emerald-500"
         >
-          {submitting ? 'Recording…' : `Record Return (${addedBatteries.length})`}
+          {submitting ? 'Recording…' : `Record Recycle (${addedBatteries.length})`}
         </button>
       </div>
     </form>
   );
 }
 
-export default ReturnForm;
+export default RecycleForm;

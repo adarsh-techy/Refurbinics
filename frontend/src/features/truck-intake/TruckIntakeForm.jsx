@@ -251,7 +251,7 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
           <select
             value={form.clientId}
             onChange={(e) => updateField('clientId', e.target.value)}
-            className="w-full rounded-md border border-blue-300 bg-black px-3.5 py-2.5 text-sm text-green-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800/40 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
+            className="w-full rounded-md border border-blue-300 bg-blue-50 px-3.5 py-2.5 text-sm text-green-700 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30 dark:border-blue-800/40 dark:bg-black dark:text-green-500 dark:focus:border-blue-400 dark:focus:ring-blue-400/30"
             required
           >
             <option value="">Select a client</option>
@@ -293,14 +293,14 @@ function TruckIntakeForm({ intake, onSaved, onCancel }) {
                 />
 
                 {showScanSuggestions && scanSuggestions.length > 0 && (
-                  <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-800/40 bg-black py-1 shadow-lg">
+                  <ul className="absolute z-10 mt-1 max-h-56 w-full overflow-y-auto rounded-md border border-blue-200 bg-white py-1 shadow-lg dark:border-blue-800/40 dark:bg-black">
                     {scanSuggestions.map((b) => (
                       <li key={b.battery_code}>
                         <button
                           type="button"
                           onMouseDown={(e) => e.preventDefault()}
                           onClick={() => selectScanCode(b.battery_code)}
-                          className="flex w-full items-center px-3 py-2 text-left text-sm text-neutral-100 hover:bg-blue-900/30"
+                          className="flex w-full items-center px-3 py-2 text-left text-sm text-slate-700 hover:bg-blue-50 dark:text-neutral-100 dark:hover:bg-blue-900/30"
                         >
                           <span>{b.battery_code}</span>
                         </button>

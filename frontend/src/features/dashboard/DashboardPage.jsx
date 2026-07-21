@@ -126,33 +126,61 @@ function DashboardPage() {
       </div>
 
       <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Total Batteries"
-          value={totals.totalBatteries}
-          delta={changes.totalBatteries}
-          trend={trends.totalBatteries}
-          tone="info"
-        />
-        <StatCard
-          label="Pending Repair"
-          value={totals.pendingRepair}
-          trend={trends.pendingRepair}
-          tone="warning"
-          deltaGoodDirection="down"
-        />
-        <StatCard
-          label="Repaired"
-          value={totals.repaired}
-          delta={changes.repaired}
-          trend={trends.repaired}
-          tone="good"
-        />
-        <StatCard
-          label="Low Stock Parts"
-          value={totals.lowStockParts}
-          tone="critical"
-          deltaGoodDirection="down"
-        />
+        <Link to="/batteries" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+          <StatCard
+            label="Total Batteries"
+            value={totals.totalBatteries}
+            delta={changes.totalBatteries}
+            trend={trends.totalBatteries}
+            tone="info"
+          />
+        </Link>
+        <Link to="/batteries?status=in_repair" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+          <StatCard
+            label="Pending Repair"
+            value={totals.pendingRepair}
+            trend={trends.pendingRepair}
+            tone="warning"
+            deltaGoodDirection="down"
+          />
+        </Link>
+        <Link to="/batteries?status=repaired" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+          <StatCard
+            label="Repaired"
+            value={totals.repaired}
+            delta={changes.repaired}
+            trend={trends.repaired}
+            tone="good"
+          />
+        </Link>
+        {hasPermission(user, 'parts') ? (
+          <Link to="/parts?lowStock=true" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+            <StatCard
+              label="Low Stock Parts"
+              value={totals.lowStockParts}
+              tone="critical"
+              deltaGoodDirection="down"
+            />
+          </Link>
+        ) : (
+          <StatCard
+            label="Low Stock Parts"
+            value={totals.lowStockParts}
+            tone="critical"
+            deltaGoodDirection="down"
+          />
+        )}
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Link to="/batteries/unserviceable" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+          <StatCard label="Unserviceable" value={totals.unserviceable} tone="critical" />
+        </Link>
+        {hasPermission(user, 'recycle') && (
+          <Link to="/recycle" className="block h-full rounded-xl transition-shadow hover:shadow-md">
+            <StatCard label="Recycled" value={totals.recycled} tone="good" />
+          </Link>
+        )}
       </div>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">

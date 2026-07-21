@@ -35,6 +35,8 @@ const TechnicianDashboardPage = lazy(() => import('../features/batteries/Technic
 const TechnicianHistoryPage = lazy(() => import('../features/batteries/TechnicianHistoryPage'));
 const ReturnsPage = lazy(() => import('../features/returns/ReturnsPage'));
 const ReturnDetailPage = lazy(() => import('../features/returns/ReturnDetailPage'));
+const RecyclePage = lazy(() => import('../features/recycle/RecyclePage'));
+const RecycleDetailPage = lazy(() => import('../features/recycle/RecycleDetailPage'));
 const AuditLogPage = lazy(() => import('../features/audit-log/AuditLogPage'));
 const FinancePage = lazy(() => import('../features/finance/FinancePage'));
 const UsersPage = lazy(() => import('../features/users/UsersPage'));
@@ -96,6 +98,10 @@ function AppRoutes() {
           <Route element={<ProtectedRoute permission="returns" />}>
             <Route path="/returns" element={<ReturnsPage />} />
             <Route path="/returns/:id" element={<ReturnDetailPage />} />
+          </Route>
+          <Route element={<ProtectedRoute permission="recycle" />}>
+            <Route path="/recycle" element={<RecyclePage />} />
+            <Route path="/recycle/:id" element={<RecycleDetailPage />} />
           </Route>
           <Route element={<ProtectedRoute permission="audit_logs" />}>
             <Route path="/audit-logs" element={<AuditLogPage />} />

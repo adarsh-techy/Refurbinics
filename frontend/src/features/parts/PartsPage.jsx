@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import useFetchList from '../../utils/use-fetch-list';
 import DataTable from '../../components/ui/DataTable';
 import TableState from '../../components/ui/TableState';
@@ -22,11 +22,19 @@ function PartsPage() {
   const isSuperAdmin = user?.role === 'super_admin';
   const canManageParts = hasPermission(user, 'parts');
 
+  // The dashboard's "Low Stock Parts" card deep links here with
+  // ?lowStock=true, so the list opens pre-filtered instead of requiring a
+  // second click.
+  const [searchParams] = useSearchParams();
+  const [lowStockOnly, setLowStockOnly] = useState(searchParams.get('lowStock') === 'true');
+
   // null = closed, 'new' = create form, a part object = edit form
   const [formTarget, setFormTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [deleteError, setDeleteError] = useState(null);
   const [restockTarget, setRestockTarget] = useState(null);
+
+  const filtered = lowStockOnly ? (data || []).filter((p) => !p.in_stock) : data;
 
   function handleSaved() {
     refetch();
@@ -110,6 +118,25 @@ function PartsPage() {
         <Button variant="darkViolet" onClick={() => setFormTarget('new')}>+ Add Part</Button>
       </PageHeader>
 
+      <div className="mb-6 flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setLowStockOnly((prev) => !prev)}
+          className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
+            lowStockOnly
+              ? 'bg-critical-600 text-white dark:bg-red-600'
+              : 'border border-critical-200 text-critical-700 hover:bg-critical-50 dark:border-red-800/40 dark:text-red-300 dark:hover:bg-red-500/10'
+          }`}
+        >
+          Low Stock Only
+        </button>
+        {lowStockOnly && (
+          <span className="text-sm text-slate-500 dark:text-neutral-400">
+            {filtered.length} part{filtered.length === 1 ? '' : 's'} at 5 units or fewer
+          </span>
+        )}
+      </div>
+
       {formTarget && (
         <Modal
           title={formTarget === 'new' ? 'Add Part' : 'Edit Part'}
@@ -152,7 +179,15 @@ function PartsPage() {
 
       {loading && <TableState>Loading…</TableState>}
       {error && <TableState tone="error">{error}</TableState>}
-      {!loading && !error && <DataTable columns={columns} rows={data} headerColor="blue" showRowNumber />}
+      {!loading && !error && (
+        <DataTable
+          columns={columns}
+          rows={filtered}
+          headerColor="blue"
+          showRowNumber
+          emptyMessage={lowStockOnly ? 'No parts are low on stock.' : undefined}
+        />
+      )}
     </div>
   );
 }

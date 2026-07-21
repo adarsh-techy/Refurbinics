@@ -11,6 +11,7 @@ router.use('/parts', require('./part.routes'));
 router.use('/issue-reasons', require('./issue-reason.routes'));
 router.use('/repairs', require('./repair.routes'));
 router.use('/returns', require('./return.routes'));
+router.use('/recycle', require('./recycle.routes'));
 router.use('/audit-logs', require('./audit-log.routes'));
 router.use('/finance', require('./finance.routes'));
 

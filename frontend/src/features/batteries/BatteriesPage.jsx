@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import useInfiniteList from '../../utils/use-infinite-list';
 import DataTable from '../../components/ui/DataTable';
 import TableState from '../../components/ui/TableState';
@@ -7,6 +7,7 @@ import InfiniteScrollTrigger from '../../components/ui/InfiniteScrollTrigger';
 import PageHeader from '../../components/ui/PageHeader';
 import { StatusBadge } from '../../components/ui/Badge';
 import BatteryLookup from './BatteryLookup';
+import { socket } from '../../services/socket-client';
 
 const PAGE_SIZE = 15;
 
@@ -26,16 +27,32 @@ const STATUS_FILTERS = [
   { value: 'repaired', label: 'Completed' },
   { value: 'returned', label: 'Returned' },
   { value: 'unserviceable', label: 'Unserviceable' },
+  { value: 'recycled', label: 'Recycled' },
 ];
 
+const VALID_STATUS_FILTERS = new Set(STATUS_FILTERS.map((f) => f.value).filter(Boolean));
+
 function BatteriesPage() {
-  const [status, setStatus] = useState('');
+  // Dashboard stat cards (Total Batteries, Pending Repair, Repaired) deep
+  // link here with ?status=..., so the list opens already filtered instead
+  // of requiring a second click on the filter row.
+  const [searchParams] = useSearchParams();
+  const initialStatus = searchParams.get('status') || '';
+  const [status, setStatus] = useState(VALID_STATUS_FILTERS.has(initialStatus) ? initialStatus : '');
   const [date, setDate] = useState('');
 
-  const { items, loading, hasMore, error, loadMore } = useInfiniteList('/batteries', PAGE_SIZE, {
+  const { items, loading, hasMore, error, loadMore, refetch } = useInfiniteList('/batteries', PAGE_SIZE, {
     status: status || undefined,
     date: date || undefined,
   });
+
+  // Keeps this list in sync while it's open — a technician starting work,
+  // completing testing, or reporting an issue in the mobile app pushes here
+  // instead of requiring a manual refresh.
+  useEffect(() => {
+    socket.on('battery:updated', refetch);
+    return () => socket.off('battery:updated', refetch);
+  }, [refetch]);
 
   const columns = [
     {

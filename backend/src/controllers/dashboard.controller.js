@@ -54,6 +54,8 @@ async function summary(req, res, next) {
         totalBatteries: Number(totals.total_batteries),
         pendingRepair: Number(totals.pending_repair),
         repaired: Number(totals.repaired),
+        unserviceable: Number(totals.unserviceable),
+        recycled: Number(totals.recycled),
         lowStockParts: Number(totals.low_stock_parts),
       },
       changes: {

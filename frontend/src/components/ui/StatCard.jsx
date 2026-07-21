@@ -26,7 +26,7 @@ function StatCard({ label, value, delta, deltaGoodDirection = 'up', trend, tone 
   const isGood = hasDelta && (deltaGoodDirection === 'up' ? isUp : !isUp);
 
   return (
-    <div className={`rounded-xl ${bg} p-4`}>
+    <div className={`h-full rounded-xl ${bg} p-4`}>
       <div className="mb-1 flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-neutral-300">
         {icon && <span aria-hidden="true">{icon}</span>}
         {label}

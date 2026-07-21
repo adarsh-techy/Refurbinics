@@ -16,6 +16,7 @@ const STATUS_MAP = {
   repaired: { tone: 'good', label: 'Completed' },
   returned: { tone: 'info', label: 'Returned' },
   unserviceable: { tone: 'critical', label: 'Unserviceable' },
+  recycled: { tone: 'neutral', label: 'Recycled' },
 };
 
 function Badge({ tone = 'neutral', children }) {

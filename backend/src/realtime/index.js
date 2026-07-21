@@ -66,9 +66,19 @@ async function broadcastUnserviceableCount() {
   io.emit('batteries:unserviceable-count', count);
 }
 
+// Pushes a battery's current row to every connected client whenever its
+// status changes (start-work, complete-testing, report-issue, manual status
+// correction) — lets the admin's Batteries list/Battery detail page stay in
+// sync without a manual refresh, mirroring what technicians see live.
+function broadcastBatteryUpdated(battery) {
+  if (!io || !battery) return;
+  io.emit('battery:updated', battery);
+}
+
 module.exports = {
   init,
   broadcastOutOfStockParts,
   broadcastRepeatIntakes,
   broadcastUnserviceableCount,
+  broadcastBatteryUpdated,
 };

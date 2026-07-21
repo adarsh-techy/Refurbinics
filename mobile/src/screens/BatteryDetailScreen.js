@@ -262,9 +262,6 @@ export default function BatteryDetailScreen() {
 
       <View className="mb-5 flex-row items-center gap-3 rounded-xl border border-blue-100 bg-blue-50 p-4">
         <StatusBadge status={battery.status} />
-        {battery.client_name && (
-          <Text className="text-xs text-slate-500">Client: {battery.client_name}</Text>
-        )}
       </View>
 
       {actionError && <Text className="mb-4 text-sm text-red-600">{actionError}</Text>}
