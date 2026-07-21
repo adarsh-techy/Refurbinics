@@ -514,7 +514,7 @@ function GenerateQrPage() {
           <p className="mb-2.5 text-xs text-slate-500 dark:text-neutral-400">
             One A4 sheet = {(Math.max(Number(sheetColumns) || DEFAULT_COLUMNS, 1)) * ROWS} QR codes (
             {Math.max(Number(sheetColumns) || DEFAULT_COLUMNS, 1)} across x {ROWS} down), oldest-generated
-            first, each labeled with its Battery Number. Asking for more spills onto extra sheets in the same PDF.
+            first, each labeled with its Battery ID. Asking for more spills onto extra sheets in the same PDF.
           </p>
           <div className="ml-auto flex shrink-0 gap-2">
             <button

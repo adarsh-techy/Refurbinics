@@ -6,7 +6,7 @@ export const DEFAULT_COLUMNS = 5;
 export const SHEET_SIZE = DEFAULT_COLUMNS * ROWS; // 45 QR codes per A4 sheet, at the default column count
 
 // Lays a batch of already-generated batteries out as a `columns`-across x
-// 9-down grid — one QR code plus its Battery Number underneath each — so a
+// 9-down grid — one QR code plus its Battery ID underneath each — so a
 // print run can be downloaded and cut apart in one go instead of one QR code
 // at a time. The admin picks where to start, how many to include, and how
 // many per row (GenerateQrPage); once the per-page count (columns x ROWS) is
@@ -42,7 +42,7 @@ export async function buildQrSheet(batteries, columns = DEFAULT_COLUMNS) {
     const dataUrl = await QRCode.toDataURL(detailUrl, { width: 300, margin: 1 });
     doc.addImage(dataUrl, 'PNG', qrX, qrY, qrSize, qrSize);
 
-    const label = battery.serial_number || battery.battery_code;
+    const label = battery.battery_code;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(40, 40, 40);

@@ -416,7 +416,7 @@ function BatteryDetailPage() {
         <div className="flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge status={battery.status} />
-            {battery.client_name && (
+            {!isTechnician && battery.client_name && (
               <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600 dark:bg-surface-700 dark:text-neutral-300">
                 Client: {battery.client_name}
               </span>
@@ -504,10 +504,12 @@ function BatteryDetailPage() {
 
       {isTechnician && <TechnicianRepairPanel battery={battery} onUpdated={load} />}
 
-      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className={`mb-6 grid grid-cols-1 gap-4 ${isTechnician ? 'sm:grid-cols-2' : 'sm:grid-cols-3'}`}>
         <StatCard label="Repairs Logged" value={repairVisits} tone="good" />
         <StatCard label="Return Shipments" value={returns.length} tone="info" />
-        <StatCard label="Total Repair Cost" value={`£${totalSpent.toFixed(2)}`} tone="warning" />
+        {!isTechnician && (
+          <StatCard label="Total Repair Cost" value={`£${totalSpent.toFixed(2)}`} tone="warning" />
+        )}
       </div>
 
       {cycles.length === 0 ? (
@@ -609,7 +611,7 @@ function BatteryDetailPage() {
                           </div>
                           <p className="text-sm text-slate-600 dark:text-neutral-300">{event.primary}</p>
                           <div className="mt-1 flex flex-wrap items-center gap-2">
-                            {event.price !== undefined && (
+                            {!isTechnician && event.price !== undefined && (
                               <span className="rounded-full bg-brand-50 px-2.5 py-0.5 text-xs font-semibold text-brand-700 dark:bg-emerald-500/10 dark:text-emerald-300">
                                 £{Number(event.price).toFixed(2)}
                               </span>
