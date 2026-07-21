@@ -385,7 +385,7 @@ function BatteryDetailPage() {
                 Generating…
               </div>
             )}
-            {battery.client_name && (
+            {!isTechnician && battery.client_name && (
               <p className="mt-4 text-sm text-slate-500 dark:text-neutral-400">Client: {battery.client_name}</p>
             )}
             {battery.serial_number && (
