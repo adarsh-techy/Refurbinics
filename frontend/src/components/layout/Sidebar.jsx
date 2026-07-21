@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { NavLink } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { hasPermission } from '../../utils/permissions';
@@ -73,24 +75,11 @@ function initials(name) {
     .toUpperCase();
 }
 
-function Sidebar() {
-  const dispatch = useDispatch();
-  const user = useSelector((state) => state.auth.user);
-
-  function isVisible(link) {
-    if (link.superAdminOnly) return user?.role === 'super_admin';
-    if (link.permission) return hasPermission(user, link.permission);
-    return true;
-  }
-
-  const groups = user?.role === 'client' ? CLIENT_NAV_GROUPS : NAV_GROUPS;
-  const visibleGroups = groups.map((group) => ({
-    ...group,
-    links: group.links.filter(isVisible),
-  })).filter((group) => group.links.length > 0);
-
+// Shared between the pinned desktop sidebar and the mobile drawer, so the
+// two never drift out of sync with each other.
+function SidebarNav({ visibleGroups, user, onLinkClick, onLogout }) {
   return (
-    <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r-[0.5px] border-emerald-200 bg-white md:flex dark:border-emerald-950 dark:bg-black">
+    <>
       <div className="h-20 overflow-hidden px-6 pt-6">
         <img src={refurbnicsLogo} alt="Refurbinics" className="-mt-14 block h-40 w-auto" />
       </div>
@@ -111,6 +100,7 @@ function Sidebar() {
                   key={link.to}
                   to={link.to}
                   end={link.end}
+                  onClick={onLinkClick}
                   className={({ isActive }) =>
                     `relative rounded-lg px-3 py-2.5 text-sm font-medium leading-none transition-colors ${
                       isActive
@@ -138,13 +128,83 @@ function Sidebar() {
           </div>
         </div>
         <button
-          onClick={() => dispatch(logout())}
+          onClick={onLogout}
           className="w-full rounded-lg bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-800 transition-colors hover:bg-red-50 hover:text-red-600 dark:bg-white/5 dark:text-neutral-300 dark:hover:bg-red-500/10 dark:hover:text-red-400"
         >
           Logout
         </button>
       </div>
-    </aside>
+    </>
+  );
+}
+
+// mobileOpen/onClose: below the md breakpoint the pinned <aside> is hidden
+// entirely (no room for a 288px rail), so this also renders a slide-in
+// drawer version — same nav content, opened by a hamburger button elsewhere
+// in the layout (Navbar for admin/super_admin, a small top bar for clients).
+function Sidebar({ mobileOpen = false, onClose = () => {} }) {
+  const dispatch = useDispatch();
+  const user = useSelector((state) => state.auth.user);
+
+  useEffect(() => {
+    if (!mobileOpen) return undefined;
+    function handleKeyDown(e) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mobileOpen]);
+
+  function isVisible(link) {
+    if (link.superAdminOnly) return user?.role === 'super_admin';
+    if (link.permission) return hasPermission(user, link.permission);
+    return true;
+  }
+
+  const groups = user?.role === 'client' ? CLIENT_NAV_GROUPS : NAV_GROUPS;
+  const visibleGroups = groups.map((group) => ({
+    ...group,
+    links: group.links.filter(isVisible),
+  })).filter((group) => group.links.length > 0);
+
+  function handleLogout() {
+    onClose();
+    dispatch(logout());
+  }
+
+  return (
+    <>
+      <aside className="sticky top-0 hidden h-screen w-72 shrink-0 flex-col border-r-[0.5px] border-emerald-200 bg-white md:flex dark:border-emerald-950 dark:bg-black">
+        <SidebarNav visibleGroups={visibleGroups} user={user} onLogout={handleLogout} />
+      </aside>
+
+      {createPortal(
+        <div
+          className={`fixed inset-0 z-50 md:hidden transition-opacity duration-300 ${
+            mobileOpen ? 'pointer-events-auto opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <div className="absolute inset-0 bg-slate-900/50" onClick={onClose} />
+          <aside
+            className={`absolute inset-y-0 left-0 flex w-72 max-w-[85vw] flex-col border-r-[0.5px] border-emerald-950 bg-white shadow-2xl transition-transform duration-300 dark:bg-black ${
+              mobileOpen ? 'translate-x-0' : '-translate-x-full'
+            }`}
+          >
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close menu"
+              className="absolute right-3 top-3 z-10 rounded-md p-1.5 text-emerald-800/60 hover:bg-emerald-50 hover:text-emerald-900 dark:text-neutral-400 dark:hover:bg-white/5 dark:hover:text-white"
+            >
+              ✕
+            </button>
+            <SidebarNav visibleGroups={visibleGroups} user={user} onLinkClick={onClose} onLogout={handleLogout} />
+          </aside>
+        </div>,
+        document.body
+      )}
+    </>
   );
 }
 
