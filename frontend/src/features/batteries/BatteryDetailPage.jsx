@@ -1,17 +1,14 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
-import { Link, useNavigate, useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import QRCode from 'qrcode';
 import apiClient from '../../services/api-client';
 import { socket } from '../../services/socket-client';
 import PageHeader from '../../components/ui/PageHeader';
-import Button from '../../components/ui/Button';
 import Modal from '../../components/ui/Modal';
-import AlertModal from '../../components/ui/AlertModal';
 import TableState from '../../components/ui/TableState';
 import { StatusBadge } from '../../components/ui/Badge';
 import StatCard from '../../components/ui/StatCard';
-import BatteryStatusForm from './BatteryStatusForm';
 import TechnicianRepairPanel from './TechnicianRepairPanel';
 
 const STATUS_ACCENT = {
@@ -72,6 +69,17 @@ const EVENT_META = {
       />
     ),
   },
+  issue: {
+    label: 'Reported Unserviceable',
+    dot: 'bg-critical-100 text-critical-700 dark:bg-red-500/15 dark:text-red-300',
+    icon: (
+      <path
+        fillRule="evenodd"
+        d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
+        clipRule="evenodd"
+      />
+    ),
+  },
 };
 
 // Flattens every truck intake this battery's ever been part of, every
@@ -79,7 +87,7 @@ const EVENT_META = {
 // events. A battery that's come back on a different truck for a second (or
 // third...) repair round shows one "Intake" event per truck, not just its
 // original one.
-function buildEvents(visits, history, returns) {
+function buildEvents(visits, history, returns, issues) {
   const events = [];
 
   visits.forEach((v) => {
@@ -111,6 +119,16 @@ function buildEvents(visits, history, returns) {
     });
   });
 
+  issues.forEach((iss) => {
+    events.push({
+      key: `issue-${iss.id}`,
+      type: 'issue',
+      date: iss.reported_at,
+      primary: `${iss.reason_label} · by ${iss.staff_name}`,
+      notes: iss.note,
+    });
+  });
+
   return events.sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
@@ -122,14 +140,28 @@ function buildEvents(visits, history, returns) {
 const PROCESS_STEPS = ['Intake', 'Started', 'Tested', 'Repaired', 'Returned'];
 const STATUS_STEP_INDEX = { in_repair: 0, in_progress: 1, in_testing: 2, repaired: 3, returned: 4 };
 
+// A battery found faulty during repair never reaches Tested/Repaired/
+// Returned — it diverges after Started into its own short dead-end flow, so
+// showing it against the normal 5 steps would read as "still on track to be
+// repaired" when it isn't. Steps from UNSERVICEABLE_DANGER_INDEX onward are
+// tinted red instead of green/blue to mark that diverging path.
+const UNSERVICEABLE_STEPS = ['Intake', 'Started', 'Unserviceable', 'Recycled'];
+const UNSERVICEABLE_STATUS_STEP_INDEX = { in_repair: 0, in_progress: 1, unserviceable: 2, recycled: 3 };
+const UNSERVICEABLE_DANGER_INDEX = 2;
+
 function ProcessStepper({ isOngoing, batteryStatus }) {
+  const isUnserviceableFlow =
+    isOngoing && (batteryStatus === 'unserviceable' || batteryStatus === 'recycled');
+  const steps = isUnserviceableFlow ? UNSERVICEABLE_STEPS : PROCESS_STEPS;
+  const stepIndex = isUnserviceableFlow ? UNSERVICEABLE_STATUS_STEP_INDEX : STATUS_STEP_INDEX;
+
   // A closed cycle (has a Returned event) passed through every stage.
   // An ongoing cycle's progress is read straight off the battery's live
   // status: everything up to and including that status is done, the next
   // step is the current/pending action, everything after is untouched.
-  const threshold = isOngoing ? STATUS_STEP_INDEX[batteryStatus] ?? 0 : PROCESS_STEPS.length - 1;
+  const threshold = isOngoing ? stepIndex[batteryStatus] ?? 0 : steps.length - 1;
 
-  const stepState = PROCESS_STEPS.map((_, i) => {
+  const stepState = steps.map((_, i) => {
     if (i <= threshold) return 2; // done
     if (i === threshold + 1) return 1; // current / next action
     return 0; // pending
@@ -137,18 +169,21 @@ function ProcessStepper({ isOngoing, batteryStatus }) {
 
   return (
     <div className="flex items-center">
-      {PROCESS_STEPS.map((label, i) => {
+      {steps.map((label, i) => {
         const state = stepState[i];
+        const isDanger = isUnserviceableFlow && i >= UNSERVICEABLE_DANGER_INDEX && state > 0;
         return (
           <div key={label} className="flex flex-1 items-center last:flex-none">
             <div className="flex flex-col items-center gap-1.5">
               <span
                 className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold ${
-                  state === 2
-                    ? 'bg-brand-600 text-white dark:bg-emerald-500'
-                    : state === 1
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-200 text-slate-500 dark:bg-surface-700 dark:text-neutral-400'
+                  isDanger
+                    ? 'bg-critical-600 text-white dark:bg-red-500'
+                    : state === 2
+                      ? 'bg-brand-600 text-white dark:bg-emerald-500'
+                      : state === 1
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-slate-200 text-slate-500 dark:bg-surface-700 dark:text-neutral-400'
                 }`}
               >
                 {state === 2 ? (
@@ -173,10 +208,14 @@ function ProcessStepper({ isOngoing, batteryStatus }) {
                 {label}
               </span>
             </div>
-            {i < PROCESS_STEPS.length - 1 && (
+            {i < steps.length - 1 && (
               <span
                 className={`mx-2 mb-5 h-0.5 flex-1 rounded ${
-                  state === 2 ? 'bg-brand-600 dark:bg-emerald-500' : 'bg-slate-200 dark:bg-surface-700'
+                  state !== 2
+                    ? 'bg-slate-200 dark:bg-surface-700'
+                    : isDanger
+                      ? 'bg-critical-600 dark:bg-red-500'
+                      : 'bg-brand-600 dark:bg-emerald-500'
                 }`}
               />
             )}
@@ -214,16 +253,12 @@ function buildCycles(events) {
 // (intake/repair/return round-trip) at a time, in order.
 function BatteryDetailPage() {
   const { code } = useParams();
-  const navigate = useNavigate();
   const user = useSelector((state) => state.auth.user);
-  const isSuperAdmin = user?.role === 'super_admin';
   const isTechnician = user?.role === 'technician';
 
   const [result, setResult] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [showEdit, setShowEdit] = useState(false);
-  const [deleteError, setDeleteError] = useState(null);
   const [qrDataUrl, setQrDataUrl] = useState(null);
   const [showQrModal, setShowQrModal] = useState(false);
 
@@ -278,22 +313,6 @@ function BatteryDetailPage() {
     link.click();
   }
 
-  function handleSaved() {
-    setShowEdit(false);
-    load();
-  }
-
-  async function handleDelete() {
-    if (!window.confirm(`Delete battery "${code}"?`)) return;
-    setDeleteError(null);
-    try {
-      await apiClient.delete(`/batteries/${result.battery.id}`);
-      navigate('/batteries');
-    } catch (err) {
-      setDeleteError(err.response?.data?.message || err.message);
-    }
-  }
-
   if (loading) return <TableState>Loading…</TableState>;
   if (error) {
     return (
@@ -309,8 +328,8 @@ function BatteryDetailPage() {
     );
   }
 
-  const { battery, history, returns, visits, recycleBatch } = result;
-  const cycles = buildCycles(buildEvents(visits || [], history, returns));
+  const { battery, history, returns, visits, issues, recycleBatch } = result;
+  const cycles = buildCycles(buildEvents(visits || [], history, returns, issues || []));
   const totalSpent = history.reduce(
     (sum, h) => sum + Number(h.price) + Number(h.labor_charge || 0),
     0
@@ -344,32 +363,7 @@ function BatteryDetailPage() {
         Back to Global Battery
       </Link>
 
-      <PageHeader title={battery.battery_code} description="Full intake-to-return history.">
-        {isSuperAdmin && (
-          <>
-            <Button variant="secondary" onClick={() => setShowEdit(true)}>
-              Edit
-            </Button>
-            <Button variant="danger" onClick={handleDelete}>
-              Delete
-            </Button>
-          </>
-        )}
-      </PageHeader>
-
-      {showEdit && (
-        <Modal
-          title="Edit Battery"
-          description="Correct this battery's status."
-          onClose={() => setShowEdit(false)}
-        >
-          <BatteryStatusForm battery={battery} onSaved={handleSaved} onCancel={() => setShowEdit(false)} />
-        </Modal>
-      )}
-
-      {deleteError && (
-        <AlertModal title="Cannot Delete Battery" message={deleteError} onClose={() => setDeleteError(null)} />
-      )}
+      <PageHeader title={battery.battery_code} description="Full intake-to-return history." />
 
       {showQrModal && (
         <Modal title={battery.battery_code} onClose={() => setShowQrModal(false)}>
@@ -518,13 +512,32 @@ function BatteryDetailPage() {
         <div className="flex flex-col gap-6">
           {cycles.map((cycle, i) => {
             const isOngoing = i === cycles.length - 1 && !cycle.some((e) => e.type === 'return');
+            const isUnserviceableCycle =
+              isOngoing && (battery.status === 'unserviceable' || battery.status === 'recycled');
             // Repaired-but-not-yet-shipped-back reads as green ("ready to
             // return") instead of the amber "still with the shop" state;
             // a cycle that's actually closed (returned) reads as blue,
             // distinct from the "repaired" green so the two don't look the
-            // same at a glance.
-            const cardTone = !isOngoing ? 'blue' : battery.status === 'repaired' ? 'green' : 'amber';
-            const cardLabel = cardTone === 'amber' ? 'With the Shop' : cardTone === 'green' ? 'Ready to Return' : 'Completed';
+            // same at a glance. A cycle that dead-ended in an unserviceable
+            // report gets its own red tone — it was never "with the shop"
+            // awaiting a normal repair, it's a separate diverging outcome.
+            const cardTone = isUnserviceableCycle
+              ? 'red'
+              : !isOngoing
+                ? 'blue'
+                : battery.status === 'repaired'
+                  ? 'green'
+                  : 'amber';
+            const cardLabel =
+              cardTone === 'red'
+                ? battery.status === 'recycled'
+                  ? 'Recycled'
+                  : 'Unserviceable'
+                : cardTone === 'amber'
+                  ? 'With the Shop'
+                  : cardTone === 'green'
+                    ? 'Ready to Return'
+                    : 'Completed';
             const TONE_CLASSES = {
               amber: {
                 border: 'border-warning-500',
@@ -540,6 +553,11 @@ function BatteryDetailPage() {
                 border: 'border-info-500',
                 bg: 'bg-info-100 dark:bg-sky-500/15',
                 text: 'text-info-700 dark:text-sky-300',
+              },
+              red: {
+                border: 'border-critical-500',
+                bg: 'bg-critical-100 dark:bg-red-500/15',
+                text: 'text-critical-700 dark:text-red-300',
               },
             };
             const tone = TONE_CLASSES[cardTone];
@@ -560,6 +578,14 @@ function BatteryDetailPage() {
                         <path
                           fillRule="evenodd"
                           d="M10 18a8 8 0 1 0 0-16 8 8 0 0 0 0 16Zm.75-13a.75.75 0 0 0-1.5 0v5c0 .2.08.39.22.53l3.5 3.5a.75.75 0 1 0 1.06-1.06l-3.28-3.28V5Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    ) : cardTone === 'red' ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="h-3.5 w-3.5">
+                        <path
+                          fillRule="evenodd"
+                          d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z"
                           clipRule="evenodd"
                         />
                       </svg>
